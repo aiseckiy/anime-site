@@ -76,7 +76,7 @@ export async function initSchema() {
 
     update users
     set role = 'admin'
-    where lower(email) = 'adilhan.bekentaev@mail.ru';
+    where lower(email) in ('adilhan.bekentaev@mail.ru', 'adimirten@gmail.com');
 
     alter table users enable row level security;
     alter table likes enable row level security;
