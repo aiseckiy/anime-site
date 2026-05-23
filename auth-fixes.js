@@ -25,6 +25,26 @@ function dangoCurrentAuthMode(mode) {
   return "login";
 }
 
+async function dangoFinishGoogleRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("auth_token");
+  const error = params.get("auth_error");
+
+  if (token) {
+    localStorage.setItem("dangoToken", token);
+    window.history.replaceState({}, document.title, window.location.pathname);
+    try {
+      const profile = await dangoAuthRequest("/api/profile");
+      await dangoApplyAuthProfile({ token, user: profile.user }, "google");
+    } catch {
+      document.querySelector("#accountHint").textContent = "Google-вход прошел, но профиль не загрузился. Обновите страницу.";
+    }
+  } else if (error) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    document.querySelector("#accountHint").textContent = `Google Auth не прошел: ${error}`;
+  }
+}
+
 async function dangoAuthRequest(path, options = {}) {
   if (typeof apiRequest === "function") return apiRequest(path, options);
   if (typeof api === "function") return api(path, options);
@@ -52,6 +72,7 @@ async function dangoApplyAuthProfile(data, mode) {
 
   document.querySelector("#accountTitle").textContent = mode === "reset"
     ? "Пароль изменен"
+    : mode === "google" ? "Google-профиль активен"
     : data.user.isAdmin ? "Админ-профиль активен" : "Профиль сохранен";
   document.querySelector("#accountHint").textContent = `${data.user.login} • ${data.user.email}`;
   localStorage.setItem("dangoSession", data.user.login);
@@ -130,6 +151,7 @@ function setAuthMode(mode) {
 function installResetPasswordControls() {
   const switcher = document.querySelector("#authSwitch");
   const passwordInput = document.querySelector("#passwordInput");
+  const authActions = document.querySelector(".auth-actions");
 
   if (switcher && !switcher.querySelector('[data-auth-mode="reset"]')) {
     const button = document.createElement("button");
@@ -149,6 +171,18 @@ function installResetPasswordControls() {
     codeInput.placeholder = "Код из письма";
     passwordInput.insertAdjacentElement("afterend", codeInput);
   }
+
+  if (authActions && !document.querySelector("#googleAuthButton")) {
+    const googleButton = document.createElement("button");
+    googleButton.id = "googleAuthButton";
+    googleButton.type = "button";
+    googleButton.textContent = "Войти через Google";
+    googleButton.addEventListener("click", () => {
+      window.location.href = "/api/auth/google";
+    });
+    authActions.append(googleButton);
+  }
 }
 
 installResetPasswordControls();
+dangoFinishGoogleRedirect();
