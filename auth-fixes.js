@@ -20,6 +20,42 @@ function dangoCurrentAuthMode(mode) {
   return "login";
 }
 
+async function dangoAuthRequest(path, options = {}) {
+  if (typeof apiRequest === "function") return apiRequest(path, options);
+  if (typeof api === "function") return api(path, options);
+
+  const headers = { ...(options.headers || {}) };
+  if (!(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
+  const savedToken = localStorage.getItem("dangoToken");
+  if (savedToken) headers.Authorization = `Bearer ${savedToken}`;
+
+  const response = await fetch(path, { ...options, headers });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "api_error");
+  return data;
+}
+
+async function dangoApplyAuthProfile(data, mode) {
+  localStorage.setItem("dangoToken", data.token);
+  localStorage.setItem("dangoBackendUser", JSON.stringify(data.user));
+
+  if (typeof applyBackendProfile === "function") {
+    applyBackendProfile({ user: data.user, liked: [], continueWatching: [] });
+  } else if (typeof state !== "undefined") {
+    state.user = data.user;
+  }
+
+  document.querySelector("#accountTitle").textContent = mode === "reset"
+    ? "Пароль изменен"
+    : data.user.isAdmin ? "Админ-профиль активен" : "Профиль сохранен";
+  document.querySelector("#accountHint").textContent = `${data.user.login} • ${data.user.email}`;
+  localStorage.setItem("dangoSession", data.user.login);
+
+  if (typeof loadBackendProfile === "function") await loadBackendProfile();
+  if (typeof loadProfile === "function") await loadProfile();
+  if (typeof renderAccount === "function") renderAccount();
+}
+
 async function createAccount(mode) {
   mode = dangoCurrentAuthMode(mode);
   const login = document.querySelector("#loginInput").value.trim();
@@ -40,15 +76,8 @@ async function createAccount(mode) {
 
   try {
     const payload = mode === "create" || mode === "reset" ? { login, email, password } : { email, password };
-    const data = await apiRequest(path, { method: "POST", body: JSON.stringify(payload) });
-    localStorage.setItem("dangoToken", data.token);
-    applyBackendProfile({ user: data.user, liked: [], continueWatching: [] });
-    document.querySelector("#accountTitle").textContent = mode === "reset"
-      ? "Пароль изменен"
-      : data.user.isAdmin ? "Админ-профиль активен" : "Профиль сохранен";
-    document.querySelector("#accountHint").textContent = `${data.user.login} • ${data.user.email}`;
-    localStorage.setItem("dangoSession", data.user.login);
-    await loadBackendProfile();
+    const data = await dangoAuthRequest(path, { method: "POST", body: JSON.stringify(payload) });
+    await dangoApplyAuthProfile(data, mode);
   } catch (error) {
     document.querySelector("#accountHint").textContent = dangoAuthErrorText(error.message, mode);
     if (error.message === "user_not_found") setAuthMode("create");
