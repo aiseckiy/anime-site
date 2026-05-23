@@ -6,7 +6,7 @@ import cors from "cors";
 import bcrypt from "bcryptjs";
 import multer from "multer";
 import dotenv from "dotenv";
-import { query } from "./db.js";
+import { hasDatabase, query } from "./db.js";
 import { initSchema } from "./schema.js";
 import { createToken, publicUser, requireAdmin, requireAuth } from "./auth.js";
 
@@ -18,6 +18,7 @@ dotenv.config({ path: path.join(__dirname, ".env"), quiet: true });
 dotenv.config({ quiet: true });
 
 const app = express();
+const host = "0.0.0.0";
 const port = Number(process.env.PORT || 3000);
 const uploadsDir = path.join(rootDir, "uploads");
 const adminEmail = "adilhan.bekentaev@mail.ru";
@@ -38,7 +39,7 @@ app.use(express.static(rootDir));
 app.use("/uploads", express.static(uploadsDir));
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, app: "DANGO" });
+  res.json({ ok: true, app: "DANGO", database: hasDatabase ? "configured" : "missing" });
 });
 
 app.post("/api/auth/register", async (req, res) => {
@@ -261,11 +262,14 @@ try {
   await initSchema();
 } catch (error) {
   console.error("DANGO database connection failed.");
-  console.error("Check server/.env DATABASE_URL. In Supabase, use Connect -> Connection string -> Session pooler if the direct host does not work.");
+  console.error("Check DATABASE_URL. On Railway, attach the Postgres service to this web service or add DATABASE_URL from Railway Postgres variables.");
   console.error(error.message);
   process.exit(1);
 }
 
-app.listen(port, () => {
-  console.log(`DANGO server: http://localhost:${port}`);
+app.listen(port, host, () => {
+  console.log(`DANGO server listening on ${host}:${port}`);
+  if (!hasDatabase) {
+    console.log("DANGO is running without DATABASE_URL. Static pages work; account features need Railway Postgres variables.");
+  }
 });
