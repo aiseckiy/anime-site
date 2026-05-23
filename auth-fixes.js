@@ -1,39 +1,94 @@
 function dangoAuthErrorText(code, mode) {
   const messages = {
     user_not_found: "Аккаунт не найден. Переключил на регистрацию: придумайте логин и создайте профиль.",
-    wrong_password: "Неверный пароль. Проверьте раскладку или войдите с паролем, который указывали при регистрации.",
+    wrong_password: "Неверный пароль. Нажмите 'Сменить пароль', укажите почту, логин и новый пароль.",
     invalid_credentials: "Неверная почта или пароль. Если аккаунта еще нет, нажмите Регистрация.",
     user_already_exists: "Аккаунт с этой почтой уже есть. Переключил на вход: введите его пароль.",
     email_password_required: "Введите почту и пароль.",
-    login_email_password_required: "Для регистрации нужны логин, почта и пароль минимум 6 символов.",
+    login_email_password_required: "Для регистрации или смены пароля нужны логин, почта и пароль минимум 6 символов.",
+    reset_identity_not_found: "Не нашел аккаунт с такой почтой и логином. Проверьте логин или зарегистрируйте новый профиль.",
     register_failed: "Регистрация не прошла. Попробуйте еще раз.",
     api_error: "Сервер не принял запрос. Попробуйте еще раз."
   };
   return messages[code] || `${mode === "create" ? "Ошибка регистрации" : "Ошибка входа"}: ${code}`;
 }
 
-async function createAccount(mode = state?.authMode || "login") {
-  const login = $("#loginInput").value.trim();
-  const email = $("#emailInput").value.trim();
-  const password = $("#passwordInput").value;
-  const path = mode === "create" ? "/api/auth/register" : "/api/auth/login";
+function dangoCurrentAuthMode(mode) {
+  if (mode) return mode;
+  if (typeof state !== "undefined" && state?.authMode) return state.authMode;
+  if (typeof authMode !== "undefined") return authMode;
+  return "login";
+}
 
-  if (mode === "create" && !login) {
-    $("#accountHint").textContent = "Для регистрации нужен логин.";
+async function createAccount(mode) {
+  mode = dangoCurrentAuthMode(mode);
+  const login = document.querySelector("#loginInput").value.trim();
+  const email = document.querySelector("#emailInput").value.trim();
+  const password = document.querySelector("#passwordInput").value;
+  const path = mode === "create"
+    ? "/api/auth/register"
+    : mode === "reset"
+      ? "/api/auth/reset-password"
+      : "/api/auth/login";
+
+  if ((mode === "create" || mode === "reset") && !login) {
+    document.querySelector("#accountHint").textContent = mode === "reset"
+      ? "Для смены пароля нужен ваш логин."
+      : "Для регистрации нужен логин.";
     return;
   }
 
   try {
-    const payload = mode === "create" ? { login, email, password } : { email, password };
-    const data = await api(path, { method: "POST", body: JSON.stringify(payload) });
+    const payload = mode === "create" || mode === "reset" ? { login, email, password } : { email, password };
+    const data = await apiRequest(path, { method: "POST", body: JSON.stringify(payload) });
     localStorage.setItem("dangoToken", data.token);
-    localStorage.setItem("dangoBackendUser", JSON.stringify(data.user));
-    state.user = data.user;
-    await loadProfile();
-    renderAccount();
+    applyBackendProfile({ user: data.user, liked: [], continueWatching: [] });
+    document.querySelector("#accountTitle").textContent = mode === "reset"
+      ? "Пароль изменен"
+      : data.user.isAdmin ? "Админ-профиль активен" : "Профиль сохранен";
+    document.querySelector("#accountHint").textContent = `${data.user.login} • ${data.user.email}`;
+    localStorage.setItem("dangoSession", data.user.login);
+    await loadBackendProfile();
   } catch (error) {
-    $("#accountHint").textContent = dangoAuthErrorText(error.message, mode);
+    document.querySelector("#accountHint").textContent = dangoAuthErrorText(error.message, mode);
     if (error.message === "user_not_found") setAuthMode("create");
     if (error.message === "user_already_exists") setAuthMode("login");
   }
 }
+
+function setAuthMode(mode) {
+  authMode = mode;
+  document.querySelectorAll("[data-auth-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.authMode === mode);
+  });
+  document.querySelector("#loginInput").classList.toggle("hidden", mode === "login");
+  document.querySelector("#loginInput").required = mode === "create" || mode === "reset";
+  document.querySelector("#authSubmitButton").textContent = mode === "create"
+    ? "Создать аккаунт"
+    : mode === "reset"
+      ? "Сменить пароль"
+      : "Войти в аккаунт";
+  document.querySelector("#accountTitle").textContent = mode === "create"
+    ? "Создать профиль"
+    : mode === "reset"
+      ? "Сменить пароль"
+      : "Войти в профиль";
+  document.querySelector("#accountHint").textContent = mode === "create"
+    ? "Придумайте логин, укажите почту и пароль."
+    : mode === "reset"
+      ? "Введите почту, логин и новый пароль минимум 6 символов."
+      : "Введите почту и пароль от уже созданного аккаунта.";
+}
+
+function installResetPasswordButton() {
+  const switcher = document.querySelector("#authSwitch");
+  if (!switcher || switcher.querySelector('[data-auth-mode="reset"]')) return;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.authMode = "reset";
+  button.textContent = "Сменить пароль";
+  button.addEventListener("click", () => setAuthMode("reset"));
+  switcher.append(button);
+}
+
+installResetPasswordButton();
