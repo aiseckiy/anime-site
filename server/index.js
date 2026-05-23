@@ -21,7 +21,10 @@ const app = express();
 const host = "0.0.0.0";
 const port = Number(process.env.PORT || 3000);
 const uploadsDir = path.join(rootDir, "uploads");
-const adminEmail = "adilhan.bekentaev@mail.ru";
+const adminEmails = new Set([
+  "adilhan.bekentaev@mail.ru",
+  "adimirten@gmail.com"
+]);
 const upload = multer({
   dest: uploadsDir,
   limits: { fileSize: 1024 * 1024 * 600 },
@@ -53,7 +56,7 @@ app.post("/api/auth/register", async (req, res) => {
 
   try {
     const normalizedEmail = email.trim().toLowerCase();
-    const role = normalizedEmail === adminEmail ? "admin" : "user";
+    const role = adminEmails.has(normalizedEmail) ? "admin" : "user";
     const result = await query(
       `insert into users (login, email, password_hash, role)
        values ($1, $2, $3, $4)
@@ -87,7 +90,7 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(401).json({ error: "invalid_credentials" });
   }
 
-  if (user.email === adminEmail && user.role !== "admin") {
+  if (adminEmails.has(user.email) && user.role !== "admin") {
     const promoted = await query(
       "update users set role = 'admin' where id = $1 returning id, login, email, role, password_hash, avatar, banner, created_at",
       [user.id]
