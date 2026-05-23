@@ -112,6 +112,39 @@ app.post("/api/auth/login", async (req, res) => {
   return res.json({ token: createToken(user), user: publicUser(user) });
 });
 
+app.post("/api/auth/reset-password", async (req, res) => {
+  const { login, email, password } = req.body || {};
+
+  if (!login || !email || !password || password.length < 6) {
+    return res.status(400).json({ error: "login_email_password_required" });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const result = await query(
+    "select id, login, email, role, avatar, banner, created_at from users where lower(email) = $1 and lower(login) = $2",
+    [normalizedEmail, login.trim().toLowerCase()]
+  );
+  let user = result.rows[0];
+
+  if (!user) {
+    return res.status(404).json({ error: "reset_identity_not_found" });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const role = adminEmails.has(normalizedEmail) ? "admin" : user.role;
+  const updated = await query(
+    `update users
+     set password_hash = $2,
+         role = $3
+     where id = $1
+     returning id, login, email, role, avatar, banner, created_at`,
+    [user.id, passwordHash, role]
+  );
+  user = updated.rows[0];
+
+  return res.json({ token: createToken(user), user: publicUser(user) });
+});
+
 app.get("/api/profile", requireAuth, async (req, res) => {
   const [likes, progress] = await Promise.all([
     query("select anime_id, anime_name, anime_image from likes where user_id = $1 order by created_at desc", [req.user.id]),
