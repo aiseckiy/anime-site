@@ -38,6 +38,13 @@ await fs.mkdir(uploadsDir, { recursive: true });
 
 app.use(cors());
 app.use(express.json({ limit: "12mb" }));
+app.get("/script.js", async (_req, res) => {
+  const [mainScript, authFixes] = await Promise.all([
+    fs.readFile(path.join(rootDir, "script.js"), "utf8"),
+    fs.readFile(path.join(rootDir, "auth-fixes.js"), "utf8").catch(() => "")
+  ]);
+  res.type("application/javascript").send(`${mainScript}\n\n${authFixes}`);
+});
 app.use(express.static(rootDir));
 app.use("/uploads", express.static(uploadsDir));
 
@@ -86,8 +93,12 @@ app.post("/api/auth/login", async (req, res) => {
   );
   let user = result.rows[0];
 
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-    return res.status(401).json({ error: "invalid_credentials" });
+  if (!user) {
+    return res.status(404).json({ error: "user_not_found" });
+  }
+
+  if (!(await bcrypt.compare(password, user.password_hash))) {
+    return res.status(401).json({ error: "wrong_password" });
   }
 
   if (adminEmails.has(user.email) && user.role !== "admin") {
