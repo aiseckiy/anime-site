@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DANGO - anime catalog</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="dango-polish.css" />
   </head>
   <body class="dark-theme">
     <header class="site-header">
@@ -91,6 +92,18 @@
             <p>История станет длиннее по мере открытия тайтлов.</p>
           </div>
         </section>
+
+        <section class="surface split" id="aiView">
+          <div>
+            <p class="eyebrow">персонализация</p>
+            <h2>AI-подбор по вайбу</h2>
+            <p>В будущем здесь можно будет искать не жанр, а настроение: “дождь и одиночество”, “летняя ночь”, “после расставания”.</p>
+          </div>
+          <div class="feature-grid">
+            <article><h3>Anime Aura</h3><p>Уровень вкуса, редкость тайтлов, достижения и стиль профиля.</p></article>
+            <article><h3>AI-антиспойлер</h3><p>Опасные комментарии скрываются до нужной серии.</p></article>
+          </div>
+        </section>
       </section>
 
       <section class="view" id="catalogView">
@@ -154,18 +167,22 @@
         <section class="surface demon-api-panel">
           <div class="section-head">
             <div>
-              <p class="eyebrow">персонажи и стили</p>
+              <p class="eyebrow">персонажи</p>
               <h1>Персонажи</h1>
             </div>
             <button class="mini-action" id="reloadDemonApi" type="button">Обновить</button>
           </div>
-          <p>Рандомная витрина из Demon Slayer API и NarutoDB. При обновлении страницы порядок меняется.</p>
+          <p>Выберите тайтл из каталога, чтобы увидеть персонажей и открыть подробную карточку.</p>
+          <label class="select-label character-select-label">
+            Аниме
+            <select id="characterTitleSelect"></select>
+          </label>
           <div class="demon-tabs">
             <button class="active" data-demon-tab="characters" type="button">Персонажи</button>
-            <button data-demon-tab="styles" type="button">Стили / команды / деревни</button>
+            <button data-demon-tab="today" type="button">Today's character</button>
           </div>
           <div class="demon-grid active" id="demonCharacters"></div>
-          <div class="demon-grid" id="demonStyles"></div>
+          <div class="today-character-panel" id="todayCharacter"></div>
         </section>
       </section>
 
@@ -310,5 +327,6 @@
     <footer class="site-footer"></footer>
 
     <script src="script.js"></script>
+    <script src="dango-polish.js"></script>
   </body>
 </html>
