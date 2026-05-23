@@ -11,17 +11,29 @@ dotenv.config({ quiet: true });
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is not set. Create server/.env and paste your Supabase connection string there.");
+export const databaseUrl =
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_PUBLIC_URL ||
+  process.env.POSTGRES_PRIVATE_URL ||
+  "";
+
+export const hasDatabase = Boolean(databaseUrl);
+
+function needsSsl(connectionString) {
+  return /supabase\.com|amazonaws\.com|render\.com/i.test(connectionString);
 }
 
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes("supabase.com")
-    ? { rejectUnauthorized: false }
-    : undefined
-});
+export const pool = hasDatabase
+  ? new Pool({
+      connectionString: databaseUrl,
+      ssl: needsSsl(databaseUrl) ? { rejectUnauthorized: false } : undefined
+    })
+  : null;
 
 export async function query(text, params) {
+  if (!pool) {
+    throw new Error("database_unconfigured");
+  }
   return pool.query(text, params);
 }
