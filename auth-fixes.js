@@ -99,9 +99,10 @@ async function createAccount(mode) {
 async function requestResetCode() {
   const login = document.querySelector("#loginInput").value.trim();
   const email = document.querySelector("#emailInput").value.trim();
+  const password = document.querySelector("#passwordInput").value;
 
-  if (!login || !email) {
-    document.querySelector("#accountHint").textContent = "Введите логин и почту, потом нажмите 'Получить код'.";
+  if (!login || !email || password.length < 6) {
+    document.querySelector("#accountHint").textContent = "Введите логин, почту и новый пароль минимум 6 символов, потом нажмите 'Получить код'.";
     return;
   }
 
@@ -118,6 +119,21 @@ async function requestResetCode() {
   }
 }
 
+function updateResetButtonVisibility() {
+  const requestButton = document.querySelector("#requestResetCodeButton");
+  if (!requestButton) return;
+
+  const mode = dangoCurrentAuthMode();
+  const login = document.querySelector("#loginInput")?.value.trim() || "";
+  const email = document.querySelector("#emailInput")?.value.trim() || "";
+  const password = document.querySelector("#passwordInput")?.value || "";
+  const canRequest = mode === "reset" && login.length >= 3 && email.includes("@") && password.length >= 6;
+
+  requestButton.classList.toggle("hidden", !canRequest);
+  requestButton.style.display = canRequest ? "" : "none";
+  requestButton.disabled = !canRequest;
+}
+
 function setAuthMode(mode) {
   if (typeof state !== "undefined") state.authMode = mode;
   if (typeof authMode !== "undefined") authMode = mode;
@@ -132,7 +148,7 @@ function setAuthMode(mode) {
   document.querySelector("#loginInput").required = isCreate || isReset;
   document.querySelector("#resetCodeInput")?.classList.toggle("hidden", !isReset);
   document.querySelector("#resetCodeInput")?.toggleAttribute("required", isReset);
-  document.querySelector("#requestResetCodeButton")?.classList.toggle("hidden", !isReset);
+  updateResetButtonVisibility();
   document.querySelector("#authSubmitButton").textContent = isCreate
     ? "Создать аккаунт"
     : isReset
@@ -180,10 +196,16 @@ function installResetPasswordControls() {
     requestButton.id = "requestResetCodeButton";
     requestButton.type = "button";
     requestButton.className = "secondary hidden";
+    requestButton.style.display = "none";
     requestButton.textContent = "Получить код";
     requestButton.addEventListener("click", requestResetCode);
     authActions.insertBefore(requestButton, submitButton);
   }
+
+  ["#loginInput", "#emailInput", "#passwordInput"].forEach((selector) => {
+    document.querySelector(selector)?.addEventListener("input", updateResetButtonVisibility);
+  });
+  updateResetButtonVisibility();
 }
 
 installResetPasswordControls();
