@@ -120,6 +120,49 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, app: "DANGO", database: hasDatabase ? "configured" : "missing" });
 });
 
+app.get("/api/naruto/characters", async (_req, res) => {
+  const sources = [
+    "https://api.narutodb.xyz/character",
+    "https://narutodb.xyz/api/character"
+  ];
+
+  for (const source of sources) {
+    try {
+      const response = await fetch(source, {
+        headers: { accept: "application/json" }
+      });
+      const type = response.headers.get("content-type") || "";
+      if (!response.ok || !type.includes("application/json")) continue;
+
+      const payload = await response.json();
+      const characters = Array.isArray(payload?.characters)
+        ? payload.characters
+        : Array.isArray(payload)
+          ? payload
+          : [];
+
+      return res.json({
+        source,
+        characters: characters.slice(0, 120).map((character) => ({
+          id: character.id,
+          name: character.name,
+          images: character.images || [],
+          debut: character.debut || {},
+          jutsu: character.jutsu || [],
+          natureType: character.natureType || [],
+          personal: character.personal || {},
+          uniqueTraits: character.uniqueTraits || [],
+          tools: character.tools || []
+        }))
+      });
+    } catch {
+      // Try the next public NarutoDB host.
+    }
+  }
+
+  res.status(502).json({ error: "narutodb_unavailable" });
+});
+
 app.post("/api/auth/register", async (req, res) => {
   const { login, email, password } = req.body || {};
 
