@@ -96,44 +96,6 @@ async function createAccount(mode) {
   }
 }
 
-async function requestResetCode() {
-  const login = document.querySelector("#loginInput").value.trim();
-  const email = document.querySelector("#emailInput").value.trim();
-  const password = document.querySelector("#passwordInput").value;
-
-  if (!login || !email || password.length < 6) {
-    document.querySelector("#accountHint").textContent = "Введите логин, почту и новый пароль минимум 6 символов, потом нажмите 'Получить код'.";
-    return;
-  }
-
-  try {
-    const data = await dangoAuthRequest("/api/auth/request-password-reset", {
-      method: "POST",
-      body: JSON.stringify({ login, email })
-    });
-    document.querySelector("#accountHint").textContent = data.delivery === "console"
-      ? "SMTP еще не настроен: код выведен в логах Railway. После SMTP код будет приходить на почту."
-      : "Код отправлен на почту. Введите его ниже и задайте новый пароль.";
-  } catch (error) {
-    document.querySelector("#accountHint").textContent = dangoAuthErrorText(error.message, "reset");
-  }
-}
-
-function updateResetButtonVisibility() {
-  const requestButton = document.querySelector("#requestResetCodeButton");
-  if (!requestButton) return;
-
-  const mode = dangoCurrentAuthMode();
-  const login = document.querySelector("#loginInput")?.value.trim() || "";
-  const email = document.querySelector("#emailInput")?.value.trim() || "";
-  const password = document.querySelector("#passwordInput")?.value || "";
-  const canRequest = mode === "reset" && login.length >= 3 && email.includes("@") && password.length >= 6;
-
-  requestButton.classList.toggle("hidden", !canRequest);
-  requestButton.style.display = canRequest ? "" : "none";
-  requestButton.disabled = !canRequest;
-}
-
 function setAuthMode(mode) {
   if (typeof state !== "undefined") state.authMode = mode;
   if (typeof authMode !== "undefined") authMode = mode;
@@ -148,7 +110,6 @@ function setAuthMode(mode) {
   document.querySelector("#loginInput").required = isCreate || isReset;
   document.querySelector("#resetCodeInput")?.classList.toggle("hidden", !isReset);
   document.querySelector("#resetCodeInput")?.toggleAttribute("required", isReset);
-  updateResetButtonVisibility();
   document.querySelector("#authSubmitButton").textContent = isCreate
     ? "Создать аккаунт"
     : isReset
@@ -169,8 +130,6 @@ function setAuthMode(mode) {
 function installResetPasswordControls() {
   const switcher = document.querySelector("#authSwitch");
   const passwordInput = document.querySelector("#passwordInput");
-  const authActions = document.querySelector(".auth-actions");
-  const submitButton = document.querySelector("#authSubmitButton");
 
   if (switcher && !switcher.querySelector('[data-auth-mode="reset"]')) {
     const button = document.createElement("button");
@@ -190,22 +149,6 @@ function installResetPasswordControls() {
     codeInput.placeholder = "Код из письма";
     passwordInput.insertAdjacentElement("afterend", codeInput);
   }
-
-  if (authActions && submitButton && !document.querySelector("#requestResetCodeButton")) {
-    const requestButton = document.createElement("button");
-    requestButton.id = "requestResetCodeButton";
-    requestButton.type = "button";
-    requestButton.className = "secondary hidden";
-    requestButton.style.display = "none";
-    requestButton.textContent = "Получить код";
-    requestButton.addEventListener("click", requestResetCode);
-    authActions.insertBefore(requestButton, submitButton);
-  }
-
-  ["#loginInput", "#emailInput", "#passwordInput"].forEach((selector) => {
-    document.querySelector(selector)?.addEventListener("input", updateResetButtonVisibility);
-  });
-  updateResetButtonVisibility();
 }
 
 installResetPasswordControls();
