@@ -60,6 +60,33 @@ function resetKey(email, login) {
   return `${email.trim().toLowerCase()}:${login.trim().toLowerCase()}`;
 }
 
+function publicBaseUrl(req) {
+  return process.env.PUBLIC_URL || `${req.protocol}://${req.get("host")}`;
+}
+
+function googleCallbackUrl(req) {
+  return process.env.GOOGLE_CALLBACK_URL || `${publicBaseUrl(req)}/api/auth/google/callback`;
+}
+
+function makeGoogleLogin(email, name) {
+  const localPart = email.split("@")[0] || name || "dango";
+  return localPart
+    .toLowerCase()
+    .replace(/[^a-z0-9а-я_-]+/gi, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 24) || `dango_${Date.now()}`;
+}
+
+async function createUniqueLogin(baseLogin) {
+  let login = baseLogin;
+  for (let index = 0; index < 20; index += 1) {
+    const existing = await query("select 1 from users where lower(login) = $1", [login.toLowerCase()]);
+    if (!existing.rows[0]) return login;
+    login = `${baseLogin}_${index + 1}`;
+  }
+  return `${baseLogin}_${Date.now()}`;
+}
+
 async function sendResetCode(email, login, code) {
   const mailer = makeMailer();
   if (!mailer) {
@@ -151,6 +178,101 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   return res.json({ token: createToken(user), user: publicUser(user) });
+});
+
+app.get("/api/auth/google", (req, res) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(500).send("Google Auth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on Railway.");
+  }
+
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: googleCallbackUrl(req),
+    response_type: "code",
+    scope: "openid email profile",
+    access_type: "online",
+    prompt: "select_account"
+  });
+
+  return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+});
+
+app.get("/api/auth/google/callback", async (req, res) => {
+  const { code, error } = req.query || {};
+
+  if (error) {
+    return res.redirect(`/?auth_error=${encodeURIComponent(String(error))}`);
+  }
+
+  if (!code || !process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.redirect("/?auth_error=google_not_configured");
+  }
+
+  try {
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code: String(code),
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: googleCallbackUrl(req),
+        grant_type: "authorization_code"
+      })
+    });
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      console.error("Google token exchange failed:", tokenData);
+      return res.redirect("/?auth_error=google_token_failed");
+    }
+
+    const profileResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+    const profile = await profileResponse.json();
+
+    if (!profileResponse.ok || !profile.email) {
+      console.error("Google profile fetch failed:", profile);
+      return res.redirect("/?auth_error=google_profile_failed");
+    }
+
+    const normalizedEmail = profile.email.trim().toLowerCase();
+    const role = adminEmails.has(normalizedEmail) ? "admin" : "user";
+    const existing = await query(
+      "select id, login, email, role, avatar, banner, created_at from users where lower(email) = $1",
+      [normalizedEmail]
+    );
+    let user = existing.rows[0];
+
+    if (user) {
+      const updated = await query(
+        `update users
+         set role = $2,
+             avatar = coalesce(nullif(avatar, ''), $3)
+         where id = $1
+         returning id, login, email, role, avatar, banner, created_at`,
+        [user.id, role, profile.picture || ""]
+      );
+      user = updated.rows[0];
+    } else {
+      const login = await createUniqueLogin(makeGoogleLogin(normalizedEmail, profile.name));
+      const passwordHash = `google:${profile.sub || crypto.randomUUID()}`;
+      const created = await query(
+        `insert into users (login, email, password_hash, role, avatar)
+         values ($1, $2, $3, $4, $5)
+         returning id, login, email, role, avatar, banner, created_at`,
+        [login, normalizedEmail, passwordHash, role, profile.picture || ""]
+      );
+      user = created.rows[0];
+    }
+
+    const token = createToken(user);
+    return res.redirect(`/?auth_token=${encodeURIComponent(token)}`);
+  } catch (authError) {
+    console.error("Google auth failed:", authError);
+    return res.redirect("/?auth_error=google_auth_failed");
+  }
 });
 
 app.post("/api/auth/request-password-reset", async (req, res) => {
