@@ -1,8 +1,13 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { query, pool } from "./db.js";
+import { hasDatabase, query, pool } from "./db.js";
 
 export async function initSchema() {
+  if (!hasDatabase) {
+    console.warn("DATABASE_URL is not set. DANGO will start in static-only mode.");
+    return;
+  }
+
   await query(`
     create table if not exists users (
       id uuid primary key default gen_random_uuid(),
@@ -86,11 +91,11 @@ const isCli = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve
 if (isCli) {
   try {
     await initSchema();
-    await pool.end();
+    await pool?.end();
     console.log("DANGO database schema is ready.");
   } catch (error) {
     console.error("DANGO database connection failed.");
-    console.error("Check server/.env DATABASE_URL. In Supabase, use Connect -> Connection string -> Session pooler if the direct host does not work.");
+    console.error("Check DATABASE_URL. On Railway, attach the Postgres service to this web service or add DATABASE_URL from Railway Postgres variables.");
     console.error(error.message);
     process.exit(1);
   }
