@@ -1,10 +1,12 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs/promises";
+import crypto from "node:crypto";
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcryptjs";
 import multer from "multer";
+import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 import { hasDatabase, query } from "./db.js";
 import { initSchema } from "./schema.js";
@@ -25,6 +27,7 @@ const adminEmails = new Set([
   "adilhan.bekentaev@mail.ru",
   "adimirten@gmail.com"
 ]);
+const passwordResetCodes = new Map();
 const upload = multer({
   dest: uploadsDir,
   limits: { fileSize: 1024 * 1024 * 600 },
@@ -35,6 +38,44 @@ const upload = multer({
 });
 
 await fs.mkdir(uploadsDir, { recursive: true });
+
+function makeMailer() {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
+}
+
+function hashResetCode(code) {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
+
+function resetKey(email, login) {
+  return `${email.trim().toLowerCase()}:${login.trim().toLowerCase()}`;
+}
+
+async function sendResetCode(email, login, code) {
+  const mailer = makeMailer();
+  if (!mailer) {
+    console.log(`DANGO password reset code for ${email} / ${login}: ${code}`);
+    return "console";
+  }
+
+  await mailer.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: email,
+    subject: "DANGO: код смены пароля",
+    text: `Ваш код смены пароля DANGO: ${code}. Код действует 10 минут.`,
+    html: `<p>Ваш код смены пароля DANGO:</p><h2>${code}</h2><p>Код действует 10 минут.</p>`
+  });
+  return "email";
+}
 
 app.use(cors());
 app.use(express.json({ limit: "12mb" }));
@@ -112,17 +153,64 @@ app.post("/api/auth/login", async (req, res) => {
   return res.json({ token: createToken(user), user: publicUser(user) });
 });
 
-app.post("/api/auth/reset-password", async (req, res) => {
-  const { login, email, password } = req.body || {};
+app.post("/api/auth/request-password-reset", async (req, res) => {
+  const { login, email } = req.body || {};
 
-  if (!login || !email || !password || password.length < 6) {
-    return res.status(400).json({ error: "login_email_password_required" });
+  if (!login || !email) {
+    return res.status(400).json({ error: "login_email_required" });
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+  const normalizedLogin = login.trim().toLowerCase();
+  const result = await query(
+    "select id, login, email from users where lower(email) = $1 and lower(login) = $2",
+    [normalizedEmail, normalizedLogin]
+  );
+
+  if (!result.rows[0]) {
+    return res.status(404).json({ error: "reset_identity_not_found" });
+  }
+
+  const code = String(crypto.randomInt(100000, 1000000));
+  passwordResetCodes.set(resetKey(normalizedEmail, normalizedLogin), {
+    codeHash: hashResetCode(code),
+    expiresAt: Date.now() + 10 * 60 * 1000
+  });
+
+  try {
+    const delivery = await sendResetCode(normalizedEmail, normalizedLogin, code);
+    return res.json({ ok: true, delivery });
+  } catch (error) {
+    console.error("Password reset email failed:", error.message);
+    passwordResetCodes.delete(resetKey(normalizedEmail, normalizedLogin));
+    return res.status(500).json({ error: "email_send_failed" });
+  }
+});
+
+app.post("/api/auth/reset-password", async (req, res) => {
+  const { login, email, password, code } = req.body || {};
+
+  if (!login || !email || !password || password.length < 6 || !code) {
+    return res.status(400).json({ error: "login_email_password_code_required" });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedLogin = login.trim().toLowerCase();
+  const key = resetKey(normalizedEmail, normalizedLogin);
+  const savedCode = passwordResetCodes.get(key);
+
+  if (!savedCode || savedCode.expiresAt < Date.now()) {
+    passwordResetCodes.delete(key);
+    return res.status(400).json({ error: "reset_code_expired" });
+  }
+
+  if (savedCode.codeHash !== hashResetCode(String(code).trim())) {
+    return res.status(400).json({ error: "reset_code_invalid" });
+  }
+
   const result = await query(
     "select id, login, email, role, avatar, banner, created_at from users where lower(email) = $1 and lower(login) = $2",
-    [normalizedEmail, login.trim().toLowerCase()]
+    [normalizedEmail, normalizedLogin]
   );
   let user = result.rows[0];
 
@@ -141,6 +229,7 @@ app.post("/api/auth/reset-password", async (req, res) => {
     [user.id, passwordHash, role]
   );
   user = updated.rows[0];
+  passwordResetCodes.delete(key);
 
   return res.json({ token: createToken(user), user: publicUser(user) });
 });
