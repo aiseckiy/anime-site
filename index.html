@@ -1,46 +1,326 @@
 <!doctype html>
 <html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DANGO - anime catalog</title>
-  <style>
-    :root{--bg:#050306;--panel:rgba(17,11,16,.96);--panel2:rgba(30,17,28,.98);--text:#fff2f8;--muted:#d9a9bf;--line:rgba(255,89,164,.32);--accent:#ff4fa2;--accent2:#ff9bc8;--button:#f0c4d7;--buttonText:#071013;--shadow:0 18px 48px rgba(0,0,0,.38)}
-    *{box-sizing:border-box}body{margin:0;min-width:320px;color:var(--text);font-family:'Trebuchet MS','Segoe UI',system-ui,sans-serif;background:radial-gradient(circle at 12% 5%,rgba(255,79,162,.18),transparent 28%),linear-gradient(180deg,var(--bg),#070407);overflow-x:hidden}button,input,select{font:inherit}.site-header{border-bottom:1px solid var(--line);background:rgba(7,4,7,.9);backdrop-filter:blur(18px)}.header-top,.page-shell,.site-footer{width:min(1360px,calc(100% - 32px));margin:auto}.header-top{min-height:76px;display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center}.brand{display:inline-flex;align-items:center;gap:12px;border:0;background:transparent;color:var(--text);cursor:pointer}.brand-mark{position:relative;width:46px;height:46px;border:1px solid var(--line);border-radius:8px;background:linear-gradient(145deg,#160c13,#281628)}.brand-mark:before{content:'';position:absolute;width:13px;height:13px;left:9px;top:14px;border-radius:50%;background:#fff;box-shadow:13px 0 0 #f6a8c5,26px 0 0 var(--accent)}.brand strong{font-size:27px}.brand small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase}.main-nav,.header-actions{display:flex;gap:8px;align-items:center}.main-nav{justify-content:center;overflow-x:auto}.nav-button,.theme-button,.account-button,.primary-link,.search button,.back-button,.title-actions button,.auth-actions button,.upload-button,.modal-close{border:1px solid var(--line);border-radius:8px;color:var(--text);background:var(--panel);cursor:pointer}.nav-button{min-height:40px;padding:0 13px}.nav-button.active,.nav-button:hover,.theme-button:hover,.account-button:hover{background:rgba(255,79,162,.18)}.theme-button,.account-button{min-height:42px;padding:0 14px}.page-shell{margin-top:22px}.view{display:none}.view.active{display:block}.home-panel,.catalog-header,.surface,.title-screen,.player-page{border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow)}.home-panel{min-height:250px;display:grid;grid-template-columns:minmax(280px,1fr) auto;gap:22px;align-items:end;padding:26px}.surface{padding:18px;margin-top:18px}.eyebrow{margin:0 0 8px;color:var(--accent);font-size:12px;font-weight:800;text-transform:uppercase}h1,h2,h3,p{margin-top:0}h1{font-size:clamp(34px,5vw,58px);line-height:1;margin-bottom:14px}h2{font-size:24px}p{color:var(--muted);line-height:1.55}.primary-link{min-height:44px;padding:0 18px;background:var(--accent);color:#111}.catalog-header{display:grid;grid-template-columns:auto minmax(260px,1fr) 180px;gap:16px;align-items:end;padding:18px}.search{display:grid;grid-template-columns:42px 1fr auto;min-height:48px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.08);overflow:hidden}.search-icon{display:grid;place-items:center;color:var(--accent)}.search input{min-width:0;border:0;outline:0;color:var(--text);background:transparent}.search button{margin:6px;padding:0 14px}.select-label{display:grid;gap:6px;color:var(--muted);font-size:13px}select,.auth-form input{width:100%;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:8px;color:var(--text);background:#160c13}.section-head{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:14px}.anime-grid,.recommendation-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.anime-card{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:var(--panel2);cursor:pointer;transition:.16s}.anime-card:hover{transform:translateY(-3px);border-color:var(--accent)}.rating-badge{position:absolute;top:8px;right:8px;z-index:2;min-width:42px;padding:4px 6px;border-radius:6px;color:#111;background:var(--accent);font-weight:800;font-size:12px;text-align:center}.poster{aspect-ratio:1/1;overflow:hidden;background:#160c13}.poster img{width:100%;height:100%;display:block;object-fit:cover}.anime-card-content{padding:10px}.anime-card h3{min-height:42px;margin-bottom:8px;font-size:15px;line-height:1.25}.anime-card p{margin:0;font-size:12px}.anime-list-long,.history-card{display:grid;gap:8px}.long-row,.continue-item,.history-row{width:100%;display:grid;grid-template-columns:56px 1fr;gap:12px;align-items:center;padding:9px;border:1px solid var(--line);border-radius:8px;color:var(--text);text-align:left;background:var(--panel2);cursor:pointer}.long-row img,.continue-item img,.history-row img{width:56px;height:56px;border-radius:8px;object-fit:cover}.long-row strong,.long-row small,.continue-item strong,.continue-item small{display:block}.long-row small,.continue-item small{color:var(--muted);margin-top:4px}.back-button{min-height:42px;margin-bottom:14px;padding:0 14px}.title-screen{padding:12px}.title-top{display:grid;grid-template-columns:96px 1fr;gap:18px;align-items:center;margin-bottom:20px;padding:14px;border:1px solid var(--line);background:rgba(255,255,255,.04)}.title-top img{width:96px;height:96px;border-radius:50%;object-fit:cover}.title-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.title-actions button{min-height:38px;padding:0 12px}.api-info{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:18px}.api-info div{padding:10px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.04);color:var(--muted)}.season-block{padding:16px 0 18px;border-top:1px solid var(--line)}.season-block h2{text-align:center;color:var(--accent2)}.episode-grid{display:grid;grid-template-columns:repeat(6,minmax(90px,1fr));gap:4px}.episode-grid button{min-height:45px;border:0;border-radius:4px;color:var(--buttonText);background:var(--button);font-weight:800;cursor:pointer}.season-block.rose .episode-grid button{background:#d9a5c0}.description-box{margin-top:18px;padding:16px;border-top:1px solid var(--line)}.player-page{display:grid;grid-template-columns:minmax(320px,1fr) 320px;gap:18px;padding:16px}.fake-player{min-height:440px;display:grid;place-items:center;border-radius:8px;background:radial-gradient(circle at center,rgba(255,79,162,.24),transparent 34%),linear-gradient(145deg,#050306,#1b1018);border:1px solid var(--line)}.player-play{width:84px;height:84px;border:1px solid var(--line);border-radius:50%;color:var(--text);background:rgba(255,79,162,.18);font-size:28px;cursor:pointer}.player-info{align-self:center}.player-info label{display:grid;gap:10px;color:var(--muted)}input[type=range]{width:100%;accent-color:var(--accent)}.feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.feature-grid article{padding:14px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.04)}.account-modal{position:fixed;inset:0;z-index:30;display:none}.account-modal.open{display:block}.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.48);backdrop-filter:blur(5px)}.account-window{position:absolute;top:82px;right:max(18px,calc((100vw - 1360px)/2));width:min(540px,calc(100% - 32px));max-height:calc(100vh - 110px);overflow:auto;padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow)}.modal-close{position:absolute;top:10px;right:10px;width:34px;height:34px;font-size:22px}.profile-banner{min-height:118px;display:flex;align-items:flex-end;justify-content:flex-end;padding:12px;border-radius:8px;background:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.45)),url('https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=900&q=80') center/cover}.upload-button{display:inline-flex;min-height:36px;align-items:center;padding:0 10px}.upload-button input,.avatar-button input{display:none}.profile-row{display:grid;grid-template-columns:78px 1fr;gap:14px;margin-top:-28px;align-items:end}.avatar-button{width:78px;height:78px;border:4px solid var(--panel);border-radius:50%;background:url('https://cdn.myanimelist.net/images/anime/1286/99889l.jpg') center/cover;cursor:pointer}.auth-form{display:grid;gap:10px;margin-top:16px}.auth-actions,.profile-lists{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.auth-actions button{min-height:42px}.profile-lists article{padding:12px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.04)}.site-footer{margin-top:28px;margin-bottom:28px;display:flex;justify-content:space-between;gap:18px;color:var(--muted);font-size:14px}@media(max-width:1180px){.anime-grid,.recommendation-strip{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:860px){.header-top,.catalog-header,.home-panel,.api-info,.player-page{grid-template-columns:1fr}.main-nav{justify-content:flex-start}.anime-grid,.feature-grid,.recommendation-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.episode-grid{grid-template-columns:repeat(3,minmax(80px,1fr))}}@media(max-width:620px){.header-top,.page-shell,.site-footer{width:min(100% - 20px,1360px)}.header-actions,.auth-actions,.profile-lists{grid-template-columns:1fr;display:grid}.search{grid-template-columns:38px 1fr}.search button{grid-column:1/-1;min-height:38px}.anime-grid,.feature-grid,.recommendation-strip{grid-template-columns:1fr}.episode-grid{grid-template-columns:repeat(2,minmax(80px,1fr))}.site-footer{flex-direction:column}}
-  </style>
-</head>
-<body>
-  <header class="site-header"><div class="header-top"><button class="brand" id="homeButton"><span class="brand-mark"></span><span><strong>DANGO</strong><small>anime catalog</small></span></button><nav class="main-nav"><button class="nav-button active" data-route="home">Главная</button><button class="nav-button" data-route="catalog">Аниме</button><button class="nav-button" data-route="home">AI-подбор</button></nav><div class="header-actions"><button class="theme-button" id="themeButton">Черный + розовый</button><button class="account-button" id="openAccount">Кабинет</button></div></div></header>
-  <main class="page-shell">
-    <section class="view active" id="homeView"><section class="home-panel"><div><p class="eyebrow">DANGO</p><h1>Главная</h1><p>Рекомендации, продолжение просмотра и список аниме без лишнего шума.</p></div><button class="primary-link" data-route="catalog">Открыть все аниме</button></section><section class="surface"><div class="section-head"><div><p class="eyebrow">продолжить</p><h2>Продолжить просмотр</h2></div></div><div id="continueCard"><p>Выберите серию в любом тайтле, и DANGO запомнит место просмотра даже после обновления страницы.</p></div></section><section class="surface"><div class="section-head"><div><p class="eyebrow">подборка</p><h2>Рекомендации</h2></div></div><div class="recommendation-strip" id="homeRecommendations"></div></section><section class="surface"><div class="section-head"><div><p class="eyebrow">история</p><h2>Просмотренные аниме</h2></div></div><div class="history-card" id="historyCard"><p>История станет длиннее по мере открытия тайтлов.</p></div></section><section class="surface"><div class="section-head"><div><p class="eyebrow">список вниз</p><h2>Аниме на главной</h2></div></div><div class="anime-list-long" id="homeAnimeList"></div></section><section class="surface"><div><p class="eyebrow">персонализация</p><h2>AI-подбор по вайбу</h2><p>В будущем здесь можно будет искать не жанр, а настроение: дождь и одиночество, летняя ночь, после расставания.</p></div><div class="feature-grid"><article><h3>Anime Aura</h3><p>Уровень вкуса, редкость тайтлов, достижения и стиль профиля.</p></article><article><h3>AI-антиспойлер</h3><p>Опасные комментарии скрываются до нужной серии.</p></article></div></section></section>
-    <section class="view" id="catalogView"><section class="catalog-header"><div><p class="eyebrow">все аниме</p><h1>Каталог</h1></div><form class="search" id="searchForm"><span class="search-icon">⌕</span><input id="searchInput" type="search" placeholder="Поиск: Demon Slayer, Haikyu, romance..." autocomplete="off"><button type="submit">Найти</button></form><label class="select-label">Сортировка<select id="sortSelect"><option value="popular">По популярности</option><option value="rating">По рейтингу</option><option value="new">Сначала новые</option></select></label></section><section class="surface"><div class="section-head"><div><p class="eyebrow">загруженные тайтлы</p><h2>Все аниме без фильтров жанров</h2></div><div class="api-status" id="apiStatus">Jikan API готовится...</div></div><div class="anime-grid" id="animeGrid"></div></section><section class="surface"><div class="section-head"><div><p class="eyebrow">быстрый выбор</p><h2>Рекомендации каталога</h2></div></div><div id="recommendationList" class="recommendation-strip"></div></section></section>
-    <section class="view" id="titleView"><button class="back-button" data-route="catalog">← Назад к каталогу</button><section class="title-screen"><div class="title-top"><img id="titleImage" src="" alt=""><div><p class="eyebrow">тайтл</p><h1 id="watchTitle">Название аниме</h1><p id="watchMeta">Данные загружаются...</p><div class="title-actions"><button id="favButton">В избранное</button><button id="likeButton">Понравилось</button><button id="planButton">Буду смотреть</button></div></div></div><div class="api-info" id="apiInfo"></div><div class="season-list" id="seasonList"></div><section class="description-box"><h2>Описание</h2><p id="titleDescription">Описание появится после загрузки тайтла.</p></section></section></section>
-    <section class="view" id="playerView"><button class="back-button" id="backToTitle">← Назад к сериям</button><section class="player-page"><div class="fake-player"><button class="player-play" id="playerPlay">▶</button></div><div class="player-info"><p class="eyebrow">плеер</p><h1 id="playerTitle">Серия</h1><p id="playerMeta">DANGO запоминает выбранный момент просмотра.</p><label>Прогресс просмотра<input id="progressRange" type="range" min="0" max="100" value="12"></label></div></section></section>
-  </main>
-  <div class="account-modal" id="accountModal"><div class="modal-backdrop" data-close-account></div><section class="account-window"><button class="modal-close" data-close-account>×</button><div class="profile-banner" id="profileBanner"><label class="upload-button">Изменить баннер<input id="bannerInput" type="file" accept="image/*"></label></div><div class="profile-row"><label class="avatar-button"><input id="avatarInput" type="file" accept="image/*"></label><div><p class="eyebrow">личный кабинет</p><h2 id="accountTitle">Войти или создать аккаунт</h2><p id="accountHint">Создайте профиль, чтобы хранить избранное, оценки и планы просмотра.</p></div></div><form class="auth-form" id="authForm"><input id="emailInput" type="email" placeholder="Почта" required><input id="passwordInput" type="password" placeholder="Пароль" required minlength="6"><div class="auth-actions"><button type="submit" data-auth="login">Войти в аккаунт</button><button type="submit" data-auth="create">Создать новый</button></div></form><div class="profile-lists"><article><h3>Избранное</h3><p id="favList">Пока пусто</p></article><article><h3>Понравилось</h3><p id="likedList">Пока пусто</p></article><article><h3>Буду смотреть</h3><p id="planList">Пока пусто</p></article><article><h3>История</h3><p id="watchedList">Пока пусто</p></article></div></section></div>
-  <footer class="site-footer"><span>DANGO</span><span>Каталог, API-данные, история и плеер.</span></footer>
-  <script>
-const JIKAN='https://api.jikan.moe/v4';const DEMON_SLAYER_API='https://api.jikan.moe/v4/anime?q=demon%20slayer';const DEMON_SLAYER_IMAGE='https://static.wikia.nocookie.net/kimetsu-no-yaiba/images/2/2b/Kimetsu_no_Yaiba_Key_Visual_3.png/revision/latest?cb=20190319204656';
-const seed=[['Demon Slayer','demon slayer',DEMON_SLAYER_IMAGE,DEMON_SLAYER_API],['Jujutsu Kaisen','jujutsu kaisen'],['Blue Lock','blue lock'],['Frieren: Beyond Journey\'s End','frieren beyond journey'],['Haikyu!!','haikyuu'],['Spy x Family','spy x family'],['Chainsaw Man','chainsaw man'],['Bocchi the Rock!','bocchi the rock'],['Attack on Titan','attack on titan'],['One Piece','one piece'],['Naruto Shippuden','naruto shippuden'],['Death Note','death note'],['Fullmetal Alchemist: Brotherhood','fullmetal alchemist brotherhood'],['My Hero Academia','my hero academia'],['Solo Leveling','solo leveling'],['Vinland Saga','vinland saga'],['Mob Psycho 100','mob psycho 100'],['Hunter x Hunter','hunter x hunter'],['Tokyo Revengers','tokyo revengers'],['Sword Art Online','sword art online'],['Your Name','your name'],['Weathering With You','weathering with you'],['A Silent Voice','a silent voice'],['Steins;Gate','steins gate'],['Code Geass','code geass'],['Cowboy Bebop','cowboy bebop'],['Neon Genesis Evangelion','neon genesis evangelion'],['Violet Evergarden','violet evergarden'],['Kaguya-sama: Love is War','kaguya sama love is war'],['Horimiya','horimiya'],['The Promised Neverland','promised neverland'],['Black Clover','black clover'],['Dr. Stone','dr stone'],['Bleach','bleach'],['Dragon Ball Z','dragon ball z'],['Dragon Ball Super','dragon ball super'],['JoJo\'s Bizarre Adventure','jojo bizarre adventure'],['Tokyo Ghoul','tokyo ghoul'],['Parasyte','parasyte'],['Erased','erased'],['Made in Abyss','made in abyss'],['Re:Zero','rezero'],['Konosuba','konosuba'],['Mushoku Tensei','mushoku tensei'],['That Time I Got Reincarnated as a Slime','tensei shitara slime'],['Overlord','overlord'],['The Rising of the Shield Hero','shield hero'],['No Game No Life','no game no life'],['Noragami','noragami'],['Assassination Classroom','assassination classroom'],['Classroom of the Elite','classroom of the elite'],['Oshi no Ko','oshi no ko'],['Cyberpunk: Edgerunners','cyberpunk edgerunners'],['Trigun Stampede','trigun stampede'],['Samurai Champloo','samurai champloo'],['Gintama','gintama'],['Food Wars!','food wars shokugeki'],['Fairy Tail','fairy tail'],['Fire Force','fire force'],['Hell\'s Paradise','hell paradise jigokuraku'],['Mashle','mashle'],['Dandadan','dandadan'],['The Apothecary Diaries','apothecary diaries'],['Delicious in Dungeon','delicious in dungeon'],['Kaiju No. 8','kaiju no 8'],['Wind Breaker','wind breaker anime'],['Wistoria','wistoria wand and sword'],['Alya Sometimes Hides Her Feelings in Russian','alya hides her feelings in russian'],['The Angel Next Door Spoils Me Rotten','angel next door spoils me rotten'],['Clannad','clannad'],['Toradora!','toradora'],['Your Lie in April','your lie in april'],['March Comes in Like a Lion','march comes in like a lion'],['Monster','monster'],['Psycho-Pass','psycho pass'],['Hellsing Ultimate','hellsing ultimate'],['Berserk','berserk'],['Fate/Zero','fate zero'],['Fate/stay night: Unlimited Blade Works','unlimited blade works'],['The Eminence in Shadow','eminence in shadow'],['Lycoris Recoil','lycoris recoil'],['86 Eighty-Six','86 eighty six'],['Gurren Lagann','gurren lagann']];
-const fall=['https://cdn.myanimelist.net/images/anime/1286/99889l.jpg','https://cdn.myanimelist.net/images/anime/1171/109222l.jpg','https://cdn.myanimelist.net/images/anime/1258/126929l.jpg','https://cdn.myanimelist.net/images/anime/1015/138006l.jpg'];
-const titles=seed.map(([name,query,image,apiUrl],i)=>({id:i+1,name,query,apiUrl:apiUrl||`${JIKAN}/anime?q=${encodeURIComponent(query)}&limit=1`,image:image||fall[i%fall.length],rating:7.4+((i*17)%24)/10,year:2026-(i%28),popularity:1000-i,episodes:12+(i%24),movies:i%7===0?1:0,seasons:1+(i%4),api:null,apiLoaded:false}));
-const $=s=>document.querySelector(s);const animeGrid=$('#animeGrid'),homeAnimeList=$('#homeAnimeList'),homeRecommendations=$('#homeRecommendations'),recommendationList=$('#recommendationList'),continueCard=$('#continueCard'),apiStatus=$('#apiStatus'),searchInput=$('#searchInput'),sortSelect=$('#sortSelect'),historyCard=$('#historyCard'),accountModal=$('#accountModal'),profileBanner=$('#profileBanner'),avatarButton=$('.avatar-button');let currentTitle=titles[0],currentEpisode=null;const profileLists={fav:[],liked:[],plan:[]};
-function routeTo(name,payload={},push=true){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(`#${name}View`).classList.add('active');document.querySelectorAll('.nav-button').forEach(b=>b.classList.toggle('active',b.dataset.route===name));if(push)history.pushState({view:name,...payload},'',name==='title'?`#title-${payload.id}`:name==='player'?`#watch-${payload.id}-${payload.season}-${payload.episode}`:`#${name}`);scrollTo({top:0,behavior:'smooth'})}
-function info(i){return `${i.seasons} сез. • ${i.episodes} сер. • ${i.movies} фил.`}function card(i,r=false){return `<article class="anime-card" tabindex="0" data-id="${i.id}">${r?`<div class="rating-badge">★ ${Number(i.rating).toFixed(1)}</div>`:''}<div class="poster"><img src="${i.image}" alt="${i.name}" loading="lazy"></div><div class="anime-card-content"><h3>${i.name}</h3><p>${info(i)}</p></div></article>`}function bind(root){root.querySelectorAll('.anime-card').forEach(c=>{const i=titles.find(t=>t.id==c.dataset.id);c.onclick=()=>openTitle(i);c.onkeydown=e=>{if(e.key==='Enter')openTitle(i)}})}
-function renderCatalog(){const q=searchInput.value.trim().toLowerCase();const list=titles.filter(i=>`${i.name} ${i.query}`.toLowerCase().includes(q)).sort((a,b)=>sortSelect.value==='rating'?b.rating-a.rating:sortSelect.value==='new'?b.year-a.year:b.popularity-a.popularity);animeGrid.innerHTML=list.map(i=>card(i,true)).join('');bind(animeGrid)}
-function renderHome(){const rec=[...titles].sort((a,b)=>b.rating-a.rating).slice(0,10);homeRecommendations.innerHTML=rec.map(i=>card(i,false)).join('');bind(homeRecommendations);homeAnimeList.innerHTML=titles.map(i=>`<button class="long-row" data-id="${i.id}"><img src="${i.image}" alt=""><span><strong>${i.name}</strong><small>${info(i)}</small></span></button>`).join('');homeAnimeList.querySelectorAll('.long-row').forEach(r=>r.onclick=()=>openTitle(titles.find(t=>t.id==r.dataset.id)));renderContinue()}
-function renderRecommendations(){const rec=[...titles].sort((a,b)=>b.rating-a.rating).slice(0,8);recommendationList.innerHTML=rec.map(i=>card(i,false)).join('');bind(recommendationList)}
-async function fetchAnimeData(i){if(i.apiLoaded)return i.api;try{const res=await fetch(i.apiUrl);const payload=await res.json();const d=payload.data?.[0]||payload.data;if(d){i.api=d;i.apiLoaded=true;i.rating=d.score||i.rating;i.year=d.year||d.aired?.prop?.from?.year||i.year;i.episodes=d.episodes||i.episodes;i.seasons=Math.max(i.seasons,Math.max(1,Math.min(6,Math.ceil((i.episodes||12)/24))));i.movies=d.type==='Movie'?Math.max(1,i.movies):i.movies;i.image=i.name==='Demon Slayer'?DEMON_SLAYER_IMAGE:(d.images?.webp?.large_image_url||d.images?.jpg?.large_image_url||i.image);i.description=d.synopsis||i.description}}catch(e){i.apiError=true;i.apiLoaded=true}return i.api}
-async function hydrate(){let n=0;apiStatus.textContent='Jikan API: загружаю превью...';for(const i of titles){await fetchAnimeData(i);n++;if(n%8===0){renderCatalog();renderHome();renderRecommendations();apiStatus.textContent=`Jikan API: ${n}/${titles.length}`}await new Promise(r=>setTimeout(r,330))}renderCatalog();renderHome();renderRecommendations();apiStatus.textContent='Jikan API: превью обновлены'}
-async function openTitle(i,push=true){currentTitle=i;routeTo('title',{id:i.id},push);$('#titleImage').src=i.image;$('#watchTitle').textContent=i.name;$('#watchMeta').textContent='Загружаю данные тайтла...';$('#apiInfo').innerHTML='';$('#seasonList').innerHTML='';const api=await fetchAnimeData(i);const title=api?.title_english||api?.title||i.name;$('#titleImage').src=i.image;$('#watchTitle').textContent=`Смотреть ${title} все серии и сезоны`;$('#watchMeta').textContent=`${info(i)} • рейтинг ★ ${Number(i.rating).toFixed(1)}`;$('#apiInfo').innerHTML=`<div><strong>Год:</strong> ${api?.year||i.year}</div><div><strong>Статус:</strong> ${api?.status||'уточняется'}</div><div><strong>Тип:</strong> ${api?.type||'TV'}</div><div><strong>Студия:</strong> ${api?.studios?.map(s=>s.name).join(', ')||'уточняется'}</div>`;$('#titleDescription').textContent=makeDescription(i,api);renderSeasons(i);addHistory(i)}
-function renderSeasons(i){$('#seasonList').innerHTML=Array.from({length:i.seasons},(_,k)=>{const s=k+1,c=s===i.seasons?Math.max(1,i.episodes-24*(s-1))||12:Math.min(24,i.episodes||12);return `<section class="season-block ${k%2?'rose':'gray'}"><h2>${s} сезон</h2><div class="episode-grid">${Array.from({length:c},(_,e)=>`<button data-season="${s}" data-episode="${e+1}">${e+1} серия</button>`).join('')}</div></section>`}).join('');document.querySelectorAll('.episode-grid button').forEach(b=>b.onclick=()=>openPlayer(currentTitle,+b.dataset.season,+b.dataset.episode))}
-function openPlayer(i,s,e,push=true){currentTitle=i;currentEpisode={id:i.id,season:s,episode:e};const saved=getSaved(i.id,s,e);$('#playerTitle').textContent=`${i.name} • ${s} сезон • ${e} серия`;$('#playerMeta').textContent=`Продолжить с ${saved}% просмотра.`;$('#progressRange').value=saved;saveProgress(i,s,e,saved);routeTo('player',{id:i.id,season:s,episode:e},push);renderContinue()}
-function saveProgress(i,s,e,p){localStorage.setItem('dangoContinue',JSON.stringify({id:i.id,name:i.name,image:i.image,season:s,episode:e,progress:+p,at:Date.now()}));addHistory(i)}function getSaved(id,s,e){const x=JSON.parse(localStorage.getItem('dangoContinue')||'null');return x?.id===id&&x?.season===s&&x?.episode===e?x.progress||12:12}function renderContinue(){const x=JSON.parse(localStorage.getItem('dangoContinue')||'null');if(!x){continueCard.innerHTML='<p>Выберите серию в любом тайтле, и DANGO запомнит место просмотра даже после обновления страницы.</p>';return}continueCard.innerHTML=`<button class="continue-item" id="continueButton"><img src="${x.image}" alt=""><span><strong>${x.name}</strong><small>${x.season} сезон • ${x.episode} серия • ${x.progress}%</small></span></button>`;$('#continueButton').onclick=()=>openPlayer(titles.find(t=>t.id===x.id),x.season,x.episode)}
-function addHistory(i){const h=JSON.parse(localStorage.getItem('dangoHistory')||'[]').filter(e=>e.id!==i.id);h.unshift({id:i.id,name:i.name,image:i.image});localStorage.setItem('dangoHistory',JSON.stringify(h.slice(0,10)));renderHistory()}function renderHistory(){const h=JSON.parse(localStorage.getItem('dangoHistory')||'[]');if(!h.length)return;historyCard.innerHTML=h.map(e=>`<button class="history-row" data-id="${e.id}"><img src="${e.image}" alt=""><span>${e.name}</span></button>`).join('');historyCard.querySelectorAll('.history-row').forEach(r=>r.onclick=()=>openTitle(titles.find(t=>t.id==r.dataset.id)));$('#watchedList').textContent=h.map(e=>e.name).join(', ')}
-function makeDescription(i,api){const tone=i.rating>=9?'сильный, уже признанный зрителями тайтл':'тайтл с понятным входом и своим настроением';const scale=i.episodes>30?'рассчитан на долгий просмотр':'удобен для коротких сессий';return `${i.name} - ${tone}, который ${scale}. AI-описание DANGO выделяет атмосферу, динамику персонажей и удобный темп выбора следующей серии.${api?.synopsis?' По API-сводке: '+api.synopsis.slice(0,220)+'...':''}`}
-function addToProfile(type){if(!profileLists[type].includes(currentTitle.name))profileLists[type].push(currentTitle.name);$('#favList').textContent=profileLists.fav.join(', ')||'Пока пусто';$('#likedList').textContent=profileLists.liked.join(', ')||'Пока пусто';$('#planList').textContent=profileLists.plan.join(', ')||'Пока пусто'}function upload(input,target,mode){const f=input.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{target.style.backgroundImage=mode==='banner'?`linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.45)),url("${r.result}")`:`url("${r.result}")`};r.readAsDataURL(f)}
-document.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>routeTo(b.dataset.route));$('#homeButton').onclick=()=>routeTo('home');$('#themeButton').onclick=()=>document.body.classList.toggle('pink-black-theme');$('#backToTitle').onclick=()=>openTitle(currentTitle);$('#searchForm').onsubmit=e=>{e.preventDefault();renderCatalog()};searchInput.oninput=renderCatalog;sortSelect.onchange=renderCatalog;$('#favButton').onclick=()=>addToProfile('fav');$('#likeButton').onclick=()=>addToProfile('liked');$('#planButton').onclick=()=>addToProfile('plan');$('#progressRange').oninput=e=>{if(currentEpisode)saveProgress(currentTitle,currentEpisode.season,currentEpisode.episode,e.target.value)};$('#openAccount').onclick=()=>accountModal.classList.add('open');document.querySelectorAll('[data-close-account]').forEach(b=>b.onclick=()=>accountModal.classList.remove('open'));$('#authForm').onsubmit=e=>{e.preventDefault();const email=$('#emailInput').value.trim(),pass=$('#passwordInput').value;if(!email||pass.length<6)return;localStorage.setItem('dangoAccount',JSON.stringify({email,createdAt:new Date().toISOString()}));$('#accountTitle').textContent=e.submitter?.dataset.auth==='create'?'Профиль создан':'Вы вошли в аккаунт';$('#accountHint').textContent=`${email} • списки сохраняются в этом браузере.`};$('#bannerInput').onchange=e=>upload(e.target,$('#profileBanner'),'banner');$('#avatarInput').onchange=e=>upload(e.target,$('.avatar-button'),'avatar');
-window.onpopstate=e=>{const s=e.state||{view:'home'};if(s.view==='title'){const i=titles.find(t=>t.id===s.id);if(i)openTitle(i,false);return}if(s.view==='player'){const i=titles.find(t=>t.id===s.id);if(i)openPlayer(i,s.season,s.episode,false);return}routeTo(s.view||'home',{},false)};history.replaceState({view:'home'},'','#home');renderCatalog();renderHome();renderRecommendations();renderHistory();hydrate();
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DANGO - anime catalog</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="dark-theme">
+    <header class="site-header">
+      <div class="header-top">
+        <button class="brand" id="homeButton" type="button" aria-label="На главную">
+          <span class="brand-mark"></span>
+          <span>
+            <small class="brand-kicker">anime</small>
+            <strong>DANGO</strong>
+          </span>
+        </button>
+
+        <div class="cat-mascots" aria-hidden="true">
+          <span class="cat-dango"></span>
+          <span class="cat-dango second"></span>
+        </div>
+
+        <nav class="main-nav" aria-label="Основная навигация">
+          <button class="nav-button active" data-route="home">Главная</button>
+          <button class="nav-button" data-route="catalog">Аниме</button>
+          <button class="nav-button" data-route="characters">Персонажи</button>
+        </nav>
+
+        <div class="header-actions">
+          <button class="theme-button" id="themeButton" type="button" aria-label="Сменить тему">☀</button>
+          <button class="account-button profile-trigger" id="openAccount" type="button" aria-label="Профиль"></button>
+        </div>
+      </div>
+    </header>
+
+    <div class="sakura-rain" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+    </div>
+
+    <main class="page-shell">
+      <section class="view active" id="homeView">
+        <section class="home-panel">
+          <div>
+            <p class="eyebrow">DANGO</p>
+            <h1>Главная</h1>
+          </div>
+          <button class="primary-link" data-route="catalog" type="button">Открыть все аниме</button>
+        </section>
+
+        <section class="surface continue-panel" id="continuePanel">
+          <div class="section-head">
+            <div>
+              <h2>Продолжить просмотр</h2>
+            </div>
+          </div>
+          <div class="continue-card" id="continueCard">
+            <p>Выберите серию в любом тайтле, и DANGO запомнит место просмотра даже после обновления страницы.</p>
+          </div>
+        </section>
+
+        <section class="surface">
+          <div class="section-head">
+            <div>
+              <h2>Понравившиеся аниме</h2>
+            </div>
+          </div>
+          <div class="recommendation-strip" id="likedAnimeHome"></div>
+        </section>
+
+        <section class="surface">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">подборка</p>
+              <h2>Рекомендации</h2>
+            </div>
+          </div>
+          <div class="recommendation-strip" id="homeRecommendations"></div>
+        </section>
+
+        <section class="surface">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">история</p>
+              <h2>Просмотренные аниме</h2>
+            </div>
+          </div>
+          <div class="history-card" id="historyCard">
+            <p>История станет длиннее по мере открытия тайтлов.</p>
+          </div>
+        </section>
+
+        <section class="surface split" id="aiView">
+          <div>
+            <p class="eyebrow">персонализация</p>
+            <h2>AI-подбор по вайбу</h2>
+            <p>В будущем здесь можно будет искать не жанр, а настроение: “дождь и одиночество”, “летняя ночь”, “после расставания”.</p>
+          </div>
+          <div class="feature-grid">
+            <article><h3>Anime Aura</h3><p>Уровень вкуса, редкость тайтлов, достижения и стиль профиля.</p></article>
+            <article><h3>AI-антиспойлер</h3><p>Опасные комментарии скрываются до нужной серии.</p></article>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="catalogView">
+        <section class="catalog-header">
+          <div>
+            <h1>Все аниме</h1>
+          </div>
+          <form class="search" id="searchForm">
+            <span class="search-icon">⌕</span>
+            <input id="searchInput" type="search" placeholder="Поиск: Demon Slayer, Haikyu, romance..." autocomplete="off" />
+            <button type="submit">Найти</button>
+          </form>
+          <label class="select-label">
+            Сортировка
+            <select id="sortSelect">
+              <option value="popular">По популярности</option>
+              <option value="rating">По рейтингу</option>
+              <option value="new">Сначала новые</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="surface">
+          <div class="section-head">
+            <div class="api-status" id="apiStatus">Jikan API готовится...</div>
+          </div>
+          <div class="anime-grid" id="animeGrid"></div>
+        </section>
+
+        <section class="surface sync-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">база данных</p>
+              <h2>Shikimori Sync</h2>
+            </div>
+            <div class="sync-actions">
+              <button id="syncShikimoriButton" type="button">Обогатить базу</button>
+              <button id="exportShikimoriButton" type="button">Экспорт JSON</button>
+            </div>
+          </div>
+          <p>
+            Ищет ID, статус и количество вышедших серий через Shikimori API.
+            Данные сохраняются в браузере и могут быть экспортированы для backend/MongoDB.
+          </p>
+          <div class="sync-status" id="syncStatus">Ожидает запуска.</div>
+          <div class="sync-log" id="syncLog"></div>
+        </section>
+
+        <section class="surface">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">быстрый выбор</p>
+              <h2>Рекомендации каталога</h2>
+            </div>
+          </div>
+          <div id="recommendationList" class="recommendation-strip"></div>
+        </section>
+      </section>
+
+      <section class="view" id="charactersView">
+        <section class="surface demon-api-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">персонажи и стили</p>
+              <h1>Персонажи</h1>
+            </div>
+            <button class="mini-action" id="reloadDemonApi" type="button">Обновить</button>
+          </div>
+          <p>Рандомная витрина из Demon Slayer API и NarutoDB. При обновлении страницы порядок меняется.</p>
+          <div class="demon-tabs">
+            <button class="active" data-demon-tab="characters" type="button">Персонажи</button>
+            <button data-demon-tab="styles" type="button">Стили / команды / деревни</button>
+          </div>
+          <div class="demon-grid active" id="demonCharacters"></div>
+          <div class="demon-grid" id="demonStyles"></div>
+        </section>
+      </section>
+
+      <section class="view" id="titleView">
+        <button class="back-button" data-route="catalog" type="button">← Назад к каталогу</button>
+        <section class="title-screen">
+          <div class="title-top">
+            <img id="titleImage" src="" alt="" />
+            <div>
+              <p class="eyebrow">тайтл</p>
+              <h1 id="watchTitle">Название аниме</h1>
+              <p id="watchMeta">Данные загружаются...</p>
+              <div class="title-actions">
+                <button class="heart-action" id="likeButton" type="button" aria-label="Понравилось">♡</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="api-info" id="apiInfo"></div>
+          <div class="season-list" id="seasonList"></div>
+          <section class="description-box">
+            <h2>Описание</h2>
+            <p id="titleDescription">Описание появится после загрузки тайтла.</p>
+          </section>
+        </section>
+      </section>
+
+      <section class="view" id="playerView">
+        <button class="back-button" id="backToTitle" type="button">← Назад к сериям</button>
+        <section class="player-page">
+          <div class="fake-player">
+            <video class="episode-video hidden" id="episodeVideo" controls></video>
+            <button class="player-play" id="playerPlay" type="button">▶</button>
+          </div>
+          <div class="player-info">
+            <p class="eyebrow">плеер</p>
+            <h1 id="playerTitle">Серия</h1>
+            <p id="playerMeta">DANGO запоминает выбранный момент просмотра.</p>
+            <label>
+              Озвучка
+              <select id="dubSelect">
+                <option>Официальный источник</option>
+                <option>Kadokawa Anime Channel</option>
+                <option>Toei Animation</option>
+                <option>Ani-One Asia</option>
+                <option>Muse Asia / Muse Russia</option>
+                <option>Кинопоиск / Иви / Okko</option>
+                <option>Anilibria</option>
+                <option>AniDub</option>
+                <option>Оригинал + субтитры</option>
+              </select>
+            </label>
+            <label>
+              Прогресс просмотра
+              <input id="progressRange" type="range" min="0" max="100" value="12" />
+            </label>
+            <button class="episode-like" id="episodeLikeButton" type="button">♡ <span id="episodeLikeCount">0</span></button>
+          </div>
+          <form class="admin-upload hidden" id="mediaUploadForm">
+            <label>
+              Загрузить видео/аудио для этой серии
+              <input id="mediaInput" type="file" accept="video/*,audio/*" />
+            </label>
+            <button type="submit">Загрузить в плеер</button>
+            <p id="mediaUploadStatus"></p>
+          </form>
+        </section>
+        <section class="surface comments-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">обсуждение серии</p>
+              <h2>Комментарии</h2>
+            </div>
+          </div>
+          <form class="comment-form" id="commentForm">
+            <input id="commentInput" type="text" placeholder="Написать комментарий без спойлеров..." />
+            <button type="submit">Отправить</button>
+          </form>
+          <div class="comment-list" id="commentList"></div>
+        </section>
+        <p class="player-disclaimer">
+          Все материалы, расположенные на сайте, не являются публичной офертой или призывом к действию.
+          Все товарные знаки принадлежат их законным владельцам. Данный ресурс носит исключительно
+          информационно-ознакомительный характер и не является официальным продуктом компании.
+        </p>
+      </section>
+    </main>
+
+    <div class="account-modal" id="accountModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close-account></div>
+      <section class="account-window" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+        <button class="modal-close" data-close-account type="button">×</button>
+        <div class="profile-banner" id="profileBanner">
+          <label class="upload-button">
+            Изменить баннер
+            <input id="bannerInput" type="file" accept="image/*" />
+          </label>
+        </div>
+        <div class="profile-row">
+          <label class="avatar-button" aria-label="Сменить аватар">
+            <input id="avatarInput" type="file" accept="image/*" />
+          </label>
+          <div>
+            <p class="eyebrow">профиль</p>
+            <h2 id="accountTitle">Войти или создать профиль</h2>
+            <p id="accountHint">Создайте профиль, чтобы хранить избранное, оценки и планы просмотра.</p>
+          </div>
+        </div>
+
+        <div class="auth-switch" id="authSwitch">
+          <button class="active" type="button" data-auth-mode="login">Войти</button>
+          <button type="button" data-auth-mode="create">Регистрация</button>
+        </div>
+
+        <form class="auth-form" id="authForm">
+          <input id="loginInput" type="text" placeholder="Логин" required minlength="3" />
+          <input id="emailInput" type="email" placeholder="Почта" required />
+          <input id="passwordInput" type="password" placeholder="Пароль" required minlength="6" />
+          <div class="auth-actions">
+            <button id="authSubmitButton" type="submit">Войти в аккаунт</button>
+          </div>
+        </form>
+        <div class="auth-actions profile-actions hidden" id="accountActions">
+          <button id="logoutButton" type="button">Выйти из аккаунта</button>
+        </div>
+
+        <div class="profile-lists">
+          <article><h3 title="Понравилось">♡</h3><p id="likedList">Пока пусто</p></article>
+          <article><h3 class="history-icon" title="История">↺</h3><p id="watchedList">Пока пусто</p></article>
+        </div>
+      </section>
+    </div>
+
+    <div class="account-modal character-modal" id="characterModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close-character></div>
+      <section class="account-window character-window" role="dialog" aria-modal="true" aria-labelledby="characterModalTitle">
+        <button class="modal-close" data-close-character type="button">×</button>
+        <div id="characterModalBody"></div>
+      </section>
+    </div>
+
+    <footer class="site-footer"></footer>
+
+    <script src="script.js"></script>
+  </body>
 </html>
