@@ -1,4 +1,6 @@
 (() => {
+  const apiBase = window.location.protocol === "file:" ? "http://localhost:3000" : "";
+
   function playerElements() {
     return {
       shell: document.querySelector(".fake-player"),
@@ -32,6 +34,36 @@
     return parts.length ? parts.join(" • ") : "Видео";
   }
 
+  async function bunnyRequest(path, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    const token = localStorage.getItem("dangoToken") || "";
+    if (!(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    let response;
+    try {
+      response = await fetch(`${apiBase}${path}`, { ...options, headers });
+    } catch {
+      throw new Error("сервер не отвечает");
+    }
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "api_error");
+    return data;
+  }
+
+  function savedProgress(item, season, episode) {
+    try {
+      if (typeof getSavedProgress === "function") return getSavedProgress(item.id, season, episode);
+    } catch {}
+
+    const list = JSON.parse(localStorage.getItem("dangoContinueList") || "[]");
+    const saved = Array.isArray(list)
+      ? list.find((entry) => entry.id === item.id && entry.season === season && entry.episode === episode)
+      : null;
+    return saved?.progress || 0;
+  }
+
   function applyVariant(variant, item, season, episode) {
     const { video, play, meta } = playerElements();
     const iframe = ensureIframe();
@@ -53,7 +85,7 @@
       play.classList.add("hidden");
     }
 
-    const progress = typeof getSavedProgress === "function" ? getSavedProgress(item.id, season, episode) : 0;
+    const progress = savedProgress(item, season, episode);
     meta.textContent = `${variant.original_name || item.name} • ${labelVariant(variant)} • продолжить с ${progress}% просмотра.`;
   }
 
@@ -85,7 +117,7 @@
     play?.classList.remove("hidden");
 
     try {
-      const data = await apiRequest(`/api/media/${item.id}/${season}/${episode}`);
+      const data = await bunnyRequest(`/api/media/${item.id}/${season}/${episode}`);
       const variants = Array.isArray(data.variants) && data.variants.length
         ? data.variants
         : data.media
@@ -113,11 +145,13 @@
       if (!uploadStatus) return;
       uploadStatus.textContent = "Сканирую Bunny Stream и сортирую видео...";
       try {
-        const result = await apiRequest("/api/admin/bunny/sync", { method: "POST" });
+        const result = await bunnyRequest("/api/admin/bunny/sync", { method: "POST" });
         uploadStatus.textContent = `Bunny готов: ${result.synced} видео привязано, ${result.skipped.length} пропущено.`;
-        if (typeof currentTitle !== "undefined" && currentEpisode) {
-          await loadBunnyAwareMedia(currentTitle, currentEpisode.season, currentEpisode.episode);
-        }
+        try {
+          if (typeof currentTitle !== "undefined" && currentEpisode) {
+            await loadBunnyAwareMedia(currentTitle, currentEpisode.season, currentEpisode.episode);
+          }
+        } catch {}
       } catch (error) {
         uploadStatus.textContent = `Bunny ошибка: ${error.message}`;
       }
