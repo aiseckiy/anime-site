@@ -69,28 +69,25 @@
     const iframe = ensureIframe();
     if (!variant || !video || !play || !meta) return;
 
-    // Reset the player to the "press play" state — nothing autoplays.
-    video.classList.add("hidden");
-    video.removeAttribute("src");
-    if (iframe) {
-      iframe.classList.add("hidden");
-      iframe.removeAttribute("src");
-    }
-    play.classList.remove("hidden");
+    // Show a preview frame (poster) instead of a black screen. Nothing
+    // autoplays — the user starts playback with the built-in play button.
+    play.classList.add("hidden");
 
-    play.onclick = () => {
-      if (variant.embed_url && iframe) {
-        const url = new URL(variant.embed_url);
-        url.searchParams.set("autoplay", "true");
-        iframe.src = url.toString();
-        iframe.classList.remove("hidden");
-      } else if (variant.file_url) {
-        video.src = variant.file_url;
-        video.classList.remove("hidden");
-        video.play?.().catch(() => {});
-      }
-      play.classList.add("hidden");
-    };
+    if (variant.embed_url && iframe) {
+      video.classList.add("hidden");
+      video.removeAttribute("src");
+      const url = new URL(variant.embed_url);
+      url.searchParams.set("autoplay", "false");
+      url.searchParams.set("preview", "true");
+      iframe.src = url.toString();
+      iframe.classList.remove("hidden");
+    } else if (variant.file_url) {
+      iframe?.classList.add("hidden");
+      if (iframe) iframe.removeAttribute("src");
+      video.preload = "metadata";
+      video.src = variant.file_url;
+      video.classList.remove("hidden");
+    }
 
     const progress = savedProgress(item, season, episode);
     meta.textContent = `${labelVariant(variant)} • продолжить с ${progress}% просмотра.`;
