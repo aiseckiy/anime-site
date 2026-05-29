@@ -123,6 +123,23 @@ function routeTo(view, payload = {}, push = true) {
   document.querySelectorAll(".nav-button").forEach((button) => button.classList.toggle("active", button.dataset.route === view));
   if (push) history.pushState({ view, ...payload }, "", view === "title" ? `#title-${payload.id}` : view === "player" ? `#watch-${payload.id}-${payload.season}-${payload.episode}` : `#${view}`);
   window.scrollTo({ top: 0, behavior: "smooth" });
+  initAds();
+}
+
+// Initialize AdSense units only when their view is visible (SPA-safe) and a
+// real ad slot id has been set. Auto ads (the head loader) cover the rest.
+function initAds() {
+  try {
+    document.querySelectorAll("ins.adsbygoogle").forEach((ins) => {
+      const view = ins.closest(".view");
+      const visible = !view || view.classList.contains("active");
+      const slot = (ins.getAttribute("data-ad-slot") || "").trim();
+      if (visible && slot && !ins.dataset.adInit && ins.offsetWidth > 0) {
+        ins.dataset.adInit = "1";
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      }
+    });
+  } catch {}
 }
 
 function restoreFromHash() {
