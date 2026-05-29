@@ -192,6 +192,29 @@
   display: none;
 }
 
+/* Ads */
+.ad-surface {
+  position: relative;
+  min-height: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ad-label {
+  font-size: 11px;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--muted, #b9a7b2);
+  opacity: .7;
+}
+
+.ad-surface .adsbygoogle {
+  display: block;
+  width: 100%;
+  min-height: 90px;
+}
+
 /* Season / arc structure */
 .arc-title {
   margin: 14px 0 8px;
