@@ -190,7 +190,7 @@
         <button class="back-button" data-route="catalog" type="button">← Назад к каталогу</button>
         <section class="title-screen">
           <div class="title-top">
-            <img id="titleImage" src="" alt="" />
+            <img id="titleImage" src="" alt="" onerror="fallbackImg(this)" />
             <div>
               <p class="eyebrow">тайтл</p>
               <h1 id="watchTitle">Название аниме</h1>
@@ -215,7 +215,6 @@
         <section class="player-page">
           <div class="fake-player">
             <video class="episode-video hidden" id="episodeVideo" controls></video>
-            <button class="player-play" id="playerPlay" type="button">▶</button>
           </div>
           <div class="player-info">
             <p class="eyebrow">плеер</p>

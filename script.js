@@ -3,9 +3,16 @@ const DEMON_API = "https://www.demonslayer-api.com/api/v1";
 const NARUTO_API = "https://narutodb.xyz/api";
 const API_BASE = window.location.protocol === "file:" ? "http://localhost:3000" : "";
 const ADMIN_EMAIL = "adilhan.bekentaev@mail.ru";
+const PLACEHOLDER_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400'%3E%3Crect width='100%25' height='100%25' fill='%231b1018'/%3E%3Ctext x='50%25' y='50%25' fill='%23ff4fa2' font-family='sans-serif' font-size='30' font-weight='bold' text-anchor='middle' dominant-baseline='middle'%3EDANGO%3C/text%3E%3C/svg%3E";
+
+function fallbackImg(img) {
+  img.onerror = null;
+  img.src = PLACEHOLDER_IMG;
+}
+window.fallbackImg = fallbackImg;
 
 const anime = [
-  ["Demon Slayer", "Клинок, рассекающий демонов", "demon slayer", "https://static.wikia.nocookie.net/kimetsu-no-yaiba/images/2/2b/Kimetsu_no_Yaiba_Key_Visual_3.png/revision/latest?cb=20190319204656", 4, 63, 1],
+  ["Demon Slayer", "Клинок, рассекающий демонов", "demon slayer", "https://cdn.myanimelist.net/images/anime/1286/99889l.jpg", 4, 63, 1],
   ["Jujutsu Kaisen", "Магическая битва", "jujutsu kaisen", "https://cdn.myanimelist.net/images/anime/1171/109222l.jpg", 2, 47, 1],
   ["Attack on Titan", "Атака титанов", "attack on titan", "https://cdn.myanimelist.net/images/anime/10/47347l.jpg", 4, 94, 0],
   ["Haikyu!!", "Волейбол", "haikyuu", "https://cdn.myanimelist.net/images/anime/7/76014l.jpg", 4, 85, 2],
@@ -94,7 +101,23 @@ async function api(path, options = {}) {
   return data;
 }
 
+function stopPlayback() {
+  const iframe = document.querySelector("#bunnyStreamFrame");
+  if (iframe) {
+    iframe.removeAttribute("src");
+    iframe.classList.add("hidden");
+  }
+  const video = document.querySelector("#episodeVideo");
+  if (video) {
+    try { video.pause(); } catch {}
+    video.removeAttribute("src");
+    video.classList.add("hidden");
+    try { video.load(); } catch {}
+  }
+}
+
 function routeTo(view, payload = {}, push = true) {
+  if (view !== "player") stopPlayback();
   document.querySelectorAll(".view").forEach((node) => node.classList.remove("active"));
   $(`#${view}View`)?.classList.add("active");
   document.querySelectorAll(".nav-button").forEach((button) => button.classList.toggle("active", button.dataset.route === view));
@@ -102,12 +125,28 @@ function routeTo(view, payload = {}, push = true) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function restoreFromHash() {
+  const hash = decodeURIComponent((location.hash || "").replace(/^#/, ""));
+  if (hash.startsWith("watch-")) {
+    const [, id, season, episode] = hash.split("-");
+    const item = anime.find((entry) => entry.id === Number(id));
+    if (item && season && episode) { openPlayer(item, Number(season), Number(episode), false); return; }
+  } else if (hash.startsWith("title-")) {
+    const item = anime.find((entry) => entry.id === Number(hash.slice("title-".length)));
+    if (item) { openTitle(item, false); return; }
+  } else if (hash && document.querySelector(`#${hash}View`)) {
+    routeTo(hash, {}, false);
+    return;
+  }
+  routeTo("home", {}, false);
+}
+
 function card(item, rating = true) {
   const liked = state.likes.includes(item.name);
   return `<article class="anime-card" tabindex="0" data-id="${item.id}">
     ${rating ? `<div class="rating-badge">${item.rating}</div>` : ""}
     <button class="card-heart ${liked ? "liked" : ""}" data-like-id="${item.id}" type="button">${liked ? "♥" : "♡"}</button>
-    <div class="poster"><img src="${item.image}" alt="${item.name}" loading="lazy"></div>
+    <div class="poster"><img src="${item.image}" alt="${item.name}" loading="lazy" onerror="fallbackImg(this)"></div>
     <div class="anime-card-content"><h3>${item.name}</h3><p>${item.seasons} сезон • ${item.episodes} серий • ${item.movies} фильмов</p></div>
   </article>`;
 }
@@ -156,7 +195,7 @@ function renderLiked() {
 
 function renderContinue() {
   const list = state.continueList.slice(0, 6);
-  $("#continueCard").innerHTML = list.length ? list.map((item) => `<button class="continue-item" type="button" data-id="${item.id}" data-season="${item.season}" data-episode="${item.episode}"><img src="${item.image}" alt=""><span><strong>${item.name}</strong><small>${item.season} сезон, ${item.episode} серия • ${item.progress || 0}%</small></span></button>`).join("") : "<p>Выберите серию, и DANGO запомнит место просмотра.</p>";
+  $("#continueCard").innerHTML = list.length ? list.map((item) => `<button class="continue-item" type="button" data-id="${item.id}" data-season="${item.season}" data-episode="${item.episode}"><img src="${item.image}" alt="" onerror="fallbackImg(this)"><span><strong>${item.name}</strong><small>${item.season} сезон, ${item.episode} серия • ${item.progress || 0}%</small></span></button>`).join("") : "<p>Выберите серию, и DANGO запомнит место просмотра.</p>";
   $("#continueCard").querySelectorAll(".continue-item").forEach((button) => {
     button.addEventListener("click", () => openPlayer(anime.find((item) => item.id === Number(button.dataset.id)), Number(button.dataset.season), Number(button.dataset.episode)));
   });
@@ -164,13 +203,13 @@ function renderContinue() {
 
 function renderHistory() {
   const list = state.history.slice(0, 10);
-  $("#historyCard").innerHTML = list.length ? list.map((item) => `<button class="rec-item" data-id="${item.id}"><img src="${item.image}" alt=""><span><strong>${item.name}</strong><small>${item.at}</small></span></button>`).join("") : "<p>История станет длиннее по мере открытия тайтлов.</p>";
+  $("#historyCard").innerHTML = list.length ? list.map((item) => `<button class="rec-item" data-id="${item.id}"><img src="${item.image}" alt="" onerror="fallbackImg(this)"><span><strong>${item.name}</strong><small>${item.at}</small></span></button>`).join("") : "<p>История станет длиннее по мере открытия тайтлов.</p>";
   $("#historyCard").querySelectorAll(".rec-item").forEach((button) => button.addEventListener("click", () => openTitle(anime.find((item) => item.id === Number(button.dataset.id)))));
 }
 
 function renderRecommendations() {
   const picks = [...anime].sort((a, b) => b.rating - a.rating).slice(0, 8);
-  $("#recommendationList").innerHTML = picks.map((item) => `<button class="rec-item" data-id="${item.id}"><img src="${item.image}" alt=""><span><strong>${item.name}</strong><small>${item.seasons} сезон • ${item.episodes} серий</small></span></button>`).join("");
+  $("#recommendationList").innerHTML = picks.map((item) => `<button class="rec-item" data-id="${item.id}"><img src="${item.image}" alt="" onerror="fallbackImg(this)"><span><strong>${item.name}</strong><small>${item.seasons} сезон • ${item.episodes} серий</small></span></button>`).join("");
   $("#recommendationList").querySelectorAll(".rec-item").forEach((button) => button.addEventListener("click", () => openTitle(anime.find((item) => item.id === Number(button.dataset.id)))));
 }
 
@@ -334,13 +373,13 @@ async function loadMedia(item, season, episode) {
   const video = $("#episodeVideo");
   video.classList.add("hidden");
   video.removeAttribute("src");
-  $("#playerPlay").classList.remove("hidden");
+  $("#playerPlay")?.classList.remove("hidden");
   try {
     const data = await api(`/api/media/${item.id}/${season}/${episode}`);
     if (data.media?.file_url) {
       video.src = data.media.file_url;
       video.classList.remove("hidden");
-      $("#playerPlay").classList.add("hidden");
+      $("#playerPlay")?.classList.add("hidden");
       $("#playerMeta").textContent = data.media.original_name;
     }
   } catch {
@@ -383,7 +422,7 @@ function toggleLike(item) {
 }
 
 function rememberContinue(item, season, episode, progress = 0) {
-  state.continueList = [{ id: item.id, name: item.name, image: item.image, season, episode, progress: Number(progress), at: Date.now() }, ...state.continueList.filter((entry) => !(entry.id === item.id && entry.season === season && entry.episode === episode))].slice(0, 6);
+  state.continueList = [{ id: item.id, name: item.name, image: item.image, season, episode, progress: Number(progress), at: Date.now() }, ...state.continueList.filter((entry) => entry.id !== item.id)].slice(0, 6);
   localStorage.setItem("dangoContinueList", JSON.stringify(state.continueList));
   if (token()) api("/api/progress", { method: "POST", body: JSON.stringify({ animeId: item.id, animeName: item.name, animeImage: item.image, season, episode, progress: Number(progress) }) }).catch(() => {});
 }
@@ -422,7 +461,13 @@ async function loadProfile() {
     state.user = data.user;
     localStorage.setItem("dangoBackendUser", JSON.stringify(data.user));
     if (Array.isArray(data.liked)) state.likes = data.liked.map((item) => item.anime_name).filter(Boolean);
-    if (Array.isArray(data.continueWatching)) state.continueList = data.continueWatching.map((item) => ({ id: Number(item.anime_id), name: item.anime_name, image: item.anime_image, season: Number(item.season), episode: Number(item.episode), progress: Number(item.progress), at: new Date(item.updated_at).getTime() }));
+    if (Array.isArray(data.continueWatching)) {
+      const seen = new Set();
+      state.continueList = data.continueWatching
+        .map((item) => ({ id: Number(item.anime_id), name: item.anime_name, image: item.anime_image, season: Number(item.season), episode: Number(item.episode), progress: Number(item.progress), at: new Date(item.updated_at).getTime() }))
+        .filter((entry) => (seen.has(entry.id) ? false : seen.add(entry.id)))
+        .slice(0, 6);
+    }
     localStorage.setItem("dangoLikes", JSON.stringify(state.likes));
     localStorage.setItem("dangoContinueList", JSON.stringify(state.continueList));
   } catch {}
@@ -615,7 +660,7 @@ async function init() {
   renderRecommendations();
   renderAccount();
   loadCharacters();
-  history.replaceState({ view: "home" }, "", "#home");
+  restoreFromHash();
 }
 
 init();
