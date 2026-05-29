@@ -69,24 +69,31 @@
     const iframe = ensureIframe();
     if (!variant || !video || !play || !meta) return;
 
-    if (variant.embed_url) {
-      video.classList.add("hidden");
-      video.removeAttribute("src");
-      if (iframe) {
-        iframe.src = variant.embed_url;
+    // Reset the player to the "press play" state — nothing autoplays.
+    video.classList.add("hidden");
+    video.removeAttribute("src");
+    if (iframe) {
+      iframe.classList.add("hidden");
+      iframe.removeAttribute("src");
+    }
+    play.classList.remove("hidden");
+
+    play.onclick = () => {
+      if (variant.embed_url && iframe) {
+        const url = new URL(variant.embed_url);
+        url.searchParams.set("autoplay", "true");
+        iframe.src = url.toString();
         iframe.classList.remove("hidden");
+      } else if (variant.file_url) {
+        video.src = variant.file_url;
+        video.classList.remove("hidden");
+        video.play?.().catch(() => {});
       }
       play.classList.add("hidden");
-    } else if (variant.file_url) {
-      iframe?.classList.add("hidden");
-      if (iframe) iframe.removeAttribute("src");
-      video.src = variant.file_url;
-      video.classList.remove("hidden");
-      play.classList.add("hidden");
-    }
+    };
 
     const progress = savedProgress(item, season, episode);
-    meta.textContent = `${variant.original_name || item.name} • ${labelVariant(variant)} • продолжить с ${progress}% просмотра.`;
+    meta.textContent = `${labelVariant(variant)} • продолжить с ${progress}% просмотра.`;
   }
 
   function renderVariants(variants, item, season, episode) {
