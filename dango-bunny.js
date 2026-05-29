@@ -67,11 +67,11 @@
   function applyVariant(variant, item, season, episode) {
     const { video, play, meta } = playerElements();
     const iframe = ensureIframe();
-    if (!variant || !video || !play || !meta) return;
+    if (!variant || !video || !meta) return;
 
     // Show a preview frame (poster) instead of a black screen. Nothing
     // autoplays — the user starts playback with the built-in play button.
-    play.classList.add("hidden");
+    play?.classList.add("hidden");
 
     if (variant.embed_url && iframe) {
       video.classList.add("hidden");
