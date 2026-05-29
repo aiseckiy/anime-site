@@ -192,6 +192,17 @@
   display: none;
 }
 
+/* Narrower episode buttons */
+.episode-grid {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
+}
+
+.episode-grid button {
+  min-height: 40px;
+  font-size: 14px;
+}
+
 /* Privacy page + footer */
 .privacy-page {
   max-width: 820px;
