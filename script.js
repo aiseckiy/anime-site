@@ -158,6 +158,22 @@ function restoreFromHash() {
   routeTo("home", {}, false);
 }
 
+function restoreFromHash() {
+  const hash = decodeURIComponent((location.hash || "").replace(/^#/, ""));
+  if (hash.startsWith("watch-")) {
+    const [, id, season, episode] = hash.split("-");
+    const item = anime.find((entry) => entry.id === Number(id));
+    if (item && season && episode) { openPlayer(item, Number(season), Number(episode), false); return; }
+  } else if (hash.startsWith("title-")) {
+    const item = anime.find((entry) => entry.id === Number(hash.slice("title-".length)));
+    if (item) { openTitle(item, false); return; }
+  } else if (hash && document.querySelector(`#${hash}View`)) {
+    routeTo(hash, {}, false);
+    return;
+  }
+  routeTo("home", {}, false);
+}
+
 function card(item, rating = true) {
   const liked = state.likes.includes(item.name);
   return `<article class="anime-card" tabindex="0" data-id="${item.id}">
