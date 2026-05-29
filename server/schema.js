@@ -74,6 +74,27 @@ export async function initSchema() {
       unique (anime_id, season, episode)
     );
 
+    create table if not exists bunny_media (
+      id bigserial primary key,
+      anime_id integer not null,
+      anime_name text not null,
+      season integer not null default 1,
+      episode integer not null,
+      dub text not null default 'Original',
+      quality text not null default 'auto',
+      original_name text not null,
+      bunny_video_id text not null,
+      embed_url text not null,
+      direct_url text,
+      status text,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now(),
+      unique (anime_id, season, episode, dub, quality)
+    );
+
+    create index if not exists bunny_media_episode_idx
+      on bunny_media (anime_id, season, episode);
+
     update users
     set role = 'admin'
     where lower(email) in ('adilhan.bekentaev@mail.ru', 'adimirten@gmail.com');
@@ -83,6 +104,7 @@ export async function initSchema() {
     alter table progress enable row level security;
     alter table comments enable row level security;
     alter table episode_media enable row level security;
+    alter table bunny_media enable row level security;
   `);
 }
 
@@ -95,7 +117,7 @@ if (isCli) {
     console.log("DANGO database schema is ready.");
   } catch (error) {
     console.error("DANGO database connection failed.");
-    console.error("Check DATABASE_URL. On Railway, attach the Postgres service to this web service or add DATABASE_URL from Railway Postgres variables.");
+    console.error("Check server/.env DATABASE_URL. In Supabase, use Connect -> Connection string -> Session pooler if the direct host does not work.");
     console.error(error.message);
     process.exit(1);
   }
