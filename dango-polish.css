@@ -130,6 +130,8 @@
   aspect-ratio: 16 / 9;
   min-height: 0;
   overflow: hidden;
+  border: 0;
+  background: #000;
 }
 
 .fake-player .episode-video,
@@ -140,6 +142,38 @@
   height: 100%;
   border: 0;
   border-radius: 8px;
+  background: #000;
+}
+
+/* Hide external metadata captions (MAL id / rating / status). */
+.api-info {
+  display: none;
+}
+
+.episode-nav {
+  display: flex;
+  gap: 10px;
+  margin: 6px 0 4px;
+}
+
+.episode-nav button {
+  flex: 1 1 0;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text, #fff);
+  background: var(--panel-2, rgba(255,255,255,.04));
+  cursor: pointer;
+}
+
+.episode-nav button:hover:not(:disabled) {
+  background: var(--button, rgba(255,79,162,.25));
+}
+
+.episode-nav button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
 }
 
 .bunny-frame {

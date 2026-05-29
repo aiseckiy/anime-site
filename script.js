@@ -184,7 +184,6 @@ async function openTitle(item, push = true) {
   $("#watchMeta").textContent = `${item.ru} • ${item.seasons} сезон • ${item.episodes} серий • ${item.movies} фильмов`;
   $("#likeButton").textContent = state.likes.includes(item.name) ? "♥" : "♡";
   $("#titleDescription").textContent = item.description;
-  $("#apiInfo").textContent = "Загружаем внешние данные...";
   await loadStructure(item);
   renderSeasons(item);
   try {
@@ -195,10 +194,9 @@ async function openTitle(item, push = true) {
       item.description = found.synopsis || item.description;
       item.image = found.images?.jpg?.large_image_url || item.image;
       $("#titleDescription").textContent = item.description;
-      $("#apiInfo").textContent = `MAL ${found.mal_id || "-"} • рейтинг ${item.rating || "-"} • статус ${found.status || "уточняется"}`;
     }
   } catch {
-    $("#apiInfo").textContent = "Внешний API временно недоступен, показываем локальные данные.";
+    // External metadata is optional; keep the local description.
   }
 }
 
@@ -284,14 +282,49 @@ function renderSeasons(item) {
   });
 }
 
+function adjacentEpisode(item, season, episode, delta) {
+  const seasons = titleSeasons(item);
+  const episodesIn = (seasonNumber) => Math.max(1, Number(seasons[seasonNumber - 1]?.episodes) || 1);
+  let nextSeason = season;
+  let nextEpisode = episode + delta;
+
+  if (delta > 0 && nextEpisode > episodesIn(season)) {
+    if (season >= seasons.length) return null;
+    nextSeason = season + 1;
+    nextEpisode = 1;
+  } else if (delta < 0 && nextEpisode < 1) {
+    if (season <= 1) return null;
+    nextSeason = season - 1;
+    nextEpisode = episodesIn(nextSeason);
+  }
+  return { season: nextSeason, episode: nextEpisode };
+}
+
+function setupEpisodeNav(item, season, episode) {
+  const prev = adjacentEpisode(item, season, episode, -1);
+  const next = adjacentEpisode(item, season, episode, 1);
+  const prevBtn = $("#prevEpisode");
+  const nextBtn = $("#nextEpisode");
+  if (prevBtn) {
+    prevBtn.disabled = !prev;
+    prevBtn.onclick = () => prev && openPlayer(item, prev.season, prev.episode);
+  }
+  if (nextBtn) {
+    nextBtn.disabled = !next;
+    nextBtn.onclick = () => next && openPlayer(item, next.season, next.episode);
+  }
+}
+
 async function openPlayer(item, season, episode, push = true) {
   state.title = item;
   state.episode = { id: item.id, season, episode };
+  if (!(item.id in state.structures)) await loadStructure(item);
   routeTo("player", { id: item.id, season, episode }, push);
   $("#playerTitle").textContent = `${item.name} - ${season} сезон, ${episode} серия`;
   $("#progressRange").value = getProgress(item.id, season, episode);
   rememberContinue(item, season, episode, $("#progressRange").value);
   renderEpisodeLocalSocial(item, season, episode);
+  setupEpisodeNav(item, season, episode);
   await loadMedia(item, season, episode);
   await loadComments(item, season, episode);
   updateAdminUpload();
