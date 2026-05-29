@@ -76,7 +76,8 @@ const state = {
   authMode: "login",
   likes: JSON.parse(localStorage.getItem("dangoLikes") || "[]"),
   continueList: JSON.parse(localStorage.getItem("dangoContinueList") || "[]"),
-  history: JSON.parse(localStorage.getItem("dangoHistory") || "[]")
+  history: JSON.parse(localStorage.getItem("dangoHistory") || "[]"),
+  structures: {}
 };
 
 function token() {
@@ -184,6 +185,7 @@ async function openTitle(item, push = true) {
   $("#likeButton").textContent = state.likes.includes(item.name) ? "♥" : "♡";
   $("#titleDescription").textContent = item.description;
   $("#apiInfo").textContent = "Загружаем внешние данные...";
+  await loadStructure(item);
   renderSeasons(item);
   try {
     const data = await fetch(`${JIKAN}/anime?q=${encodeURIComponent(item.query)}&limit=1`).then((res) => res.json());
@@ -200,17 +202,86 @@ async function openTitle(item, push = true) {
   }
 }
 
+async function loadStructure(item) {
+  try {
+    const data = await api(`/api/structure/${item.id}`);
+    state.structures[item.id] = data.structure || null;
+  } catch {
+    state.structures[item.id] = state.structures[item.id] || null;
+  }
+}
+
+function defaultSeasons(item) {
+  const seasons = [];
+  for (let season = 1; season <= item.seasons; season += 1) {
+    const count = season === item.seasons ? Math.max(1, item.episodes - 24 * (season - 1)) : Math.min(24, item.episodes);
+    seasons.push({ title: "", episodes: Math.max(1, count), arcs: [] });
+  }
+  return seasons.length ? seasons : [{ title: "", episodes: Math.max(1, item.episodes || 1), arcs: [] }];
+}
+
+function titleSeasons(item) {
+  const structure = state.structures[item.id];
+  if (structure && Array.isArray(structure.seasons) && structure.seasons.length) {
+    return structure.seasons.map((season) => ({
+      title: season.title || "",
+      episodes: Math.max(1, Number(season.episodes) || 1),
+      arcs: Array.isArray(season.arcs) ? season.arcs : []
+    }));
+  }
+  return defaultSeasons(item);
+}
+
 function renderSeasons(item) {
   const holder = $("#seasonList");
   holder.innerHTML = "";
-  for (let season = 1; season <= item.seasons; season += 1) {
-    const count = season === item.seasons ? Math.max(1, item.episodes - 24 * (season - 1)) : Math.min(24, item.episodes);
-    const section = document.createElement("section");
-    section.className = "season-block";
-    section.innerHTML = `<h2>${season} сезон</h2><div class="episode-grid">${Array.from({ length: Math.min(count, 60) }, (_, index) => `<button type="button" data-season="${season}" data-episode="${index + 1}">${index + 1} серия</button>`).join("")}</div>`;
-    section.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => openPlayer(item, Number(button.dataset.season), Number(button.dataset.episode))));
-    holder.append(section);
+
+  if (isAdmin()) {
+    const bar = document.createElement("div");
+    bar.className = "structure-admin-bar";
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "structure-edit-button";
+    editBtn.textContent = "✎ Редактировать структуру";
+    editBtn.addEventListener("click", () => openStructureEditor(item));
+    bar.append(editBtn);
+    holder.append(bar);
   }
+
+  const seasons = titleSeasons(item);
+  seasons.forEach((season, index) => {
+    const seasonNumber = index + 1;
+    const total = Math.min(Math.max(1, Number(season.episodes) || 1), 500);
+    const block = document.createElement("section");
+    block.className = "season-block";
+
+    const makeButton = (ep) => `<button type="button" data-season="${seasonNumber}" data-episode="${ep}">${ep} серия</button>`;
+    let inner = `<h2>${escapeHtml((season.title || "").trim() || `${seasonNumber} сезон`)}</h2>`;
+
+    const arcs = (Array.isArray(season.arcs) ? season.arcs : []).filter((arc) => arc && arc.from && arc.to);
+    if (arcs.length) {
+      const covered = new Set();
+      arcs.forEach((arc) => {
+        const from = Math.max(1, Math.min(total, Number(arc.from)));
+        const to = Math.max(from, Math.min(total, Number(arc.to)));
+        const eps = [];
+        for (let ep = from; ep <= to; ep += 1) { eps.push(ep); covered.add(ep); }
+        inner += `<h3 class="arc-title">${escapeHtml((arc.name || "").trim() || "Арка")}</h3><div class="episode-grid">${eps.map(makeButton).join("")}</div>`;
+      });
+      const rest = [];
+      for (let ep = 1; ep <= total; ep += 1) if (!covered.has(ep)) rest.push(ep);
+      if (rest.length) inner += `<h3 class="arc-title">Прочие серии</h3><div class="episode-grid">${rest.map(makeButton).join("")}</div>`;
+    } else {
+      const eps = Array.from({ length: total }, (_, i) => i + 1);
+      inner += `<div class="episode-grid">${eps.map(makeButton).join("")}</div>`;
+    }
+
+    block.innerHTML = inner;
+    block.querySelectorAll("button[data-episode]").forEach((button) =>
+      button.addEventListener("click", () => openPlayer(item, Number(button.dataset.season), Number(button.dataset.episode)))
+    );
+    holder.append(block);
+  });
 }
 
 async function openPlayer(item, season, episode, push = true) {
