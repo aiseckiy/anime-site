@@ -124,10 +124,38 @@
   line-height: 1.25;
 }
 
-.bunny-frame {
-  min-height: 440px;
+.fake-player {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fake-player .episode-video,
+.fake-player .bunny-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   border: 0;
   border-radius: 8px;
+}
+
+.bunny-frame {
+  min-height: 0;
+}
+
+.player-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.player-play.hidden {
+  display: none;
 }
 
 @media (max-width: 860px) {
