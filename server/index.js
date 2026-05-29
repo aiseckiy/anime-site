@@ -104,6 +104,165 @@ async function sendResetCode(email, login, code) {
   return "email";
 }
 
+const bunnyTitleMap = [
+  {
+    id: 1,
+    name: "Demon Slayer",
+    season: 1,
+    aliases: ["kimetsu no yaiba", "kimetsu_no_yaiba", "demon slayer", "klinok rassekayushchiy demonov", "клинок рассекающий демонов"]
+  },
+  {
+    id: 11,
+    name: "Naruto Shippuden",
+    season: 2,
+    aliases: ["naruto shippuden", "naruuto season 2", "naruto"]
+  },
+  {
+    id: 2,
+    name: "Jujutsu Kaisen",
+    season: 1,
+    aliases: ["jujutsu kaisen", "jjk", "магическая битва"]
+  },
+  {
+    id: 5,
+    name: "Haikyu!!",
+    season: 1,
+    aliases: ["haikyuu", "haikyu", "волейбол"]
+  }
+];
+
+function normalizeMediaName(value = "") {
+  return String(value)
+    .toLowerCase()
+    .replace(/\.[a-z0-9]{2,5}$/i, "")
+    .replace(/[_.[\](){}-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function titleFromBunnyName(titlePart) {
+  const normalized = normalizeMediaName(titlePart);
+  return bunnyTitleMap.find((entry) => entry.aliases.some((alias) => normalized.includes(normalizeMediaName(alias))));
+}
+
+function parseBunnyVideoTitle(rawTitle = "") {
+  const originalName = String(rawTitle).trim();
+  const bracketTokens = [...originalName.matchAll(/\[([^\]]+)\]/g)].map((match) => match[1].trim()).filter(Boolean);
+  const titlePart = originalName.split("[")[0] || originalName;
+  const titleMatch = titleFromBunnyName(titlePart);
+  const episodeToken = bracketTokens.find((token) => /^\d{1,3}$/.test(token));
+  const episode = episodeToken ? Number(episodeToken) : null;
+  const dubToken = bracketTokens.find((token) => /anilibria|anidub|dub|sub|озвуч/i.test(token));
+  const qualityToken = bracketTokens.find((token) => /\d{3,4}p|4k|uhd|hd/i.test(token));
+
+  if (!titleMatch || !episode) return null;
+
+  return {
+    animeId: titleMatch.id,
+    animeName: titleMatch.name,
+    season: titleMatch.season,
+    episode,
+    dub: normalizeDub(dubToken),
+    quality: normalizeQuality(qualityToken),
+    originalName
+  };
+}
+
+function normalizeDub(value = "") {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized.includes("anilibria")) return "AniLibria";
+  if (normalized.includes("anidub")) return "AniDub";
+  if (normalized.includes("sub")) return "Субтитры";
+  return value || "Original";
+}
+
+function normalizeQuality(value = "") {
+  const match = String(value || "").match(/(2160p|1440p|1080p|720p|480p|360p|4k|uhd|hd)/i);
+  if (!match) return "auto";
+  const quality = match[1].toLowerCase();
+  if (quality === "4k" || quality === "uhd") return "2160p";
+  if (quality === "hd") return "720p";
+  return quality;
+}
+
+function bunnyEmbedUrl(libraryId, videoId) {
+  return `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}`;
+}
+
+function bunnyDirectUrl(libraryId, videoId) {
+  return `https://video.bunnycdn.com/play/${libraryId}/${videoId}`;
+}
+
+async function listBunnyVideos() {
+  const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
+  const accessKey = process.env.BUNNY_STREAM_API_KEY;
+
+  if (!libraryId || !accessKey) {
+    const error = new Error("bunny_env_missing");
+    error.status = 500;
+    throw error;
+  }
+
+  const items = [];
+  for (let page = 1; page <= 20; page += 1) {
+    const url = new URL(`https://video.bunnycdn.com/library/${libraryId}/videos`);
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("itemsPerPage", "100");
+    url.searchParams.set("orderBy", "date");
+
+    const response = await fetch(url, {
+      headers: { AccessKey: accessKey, accept: "application/json" }
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(payload?.message || "bunny_fetch_failed");
+      error.status = response.status;
+      throw error;
+    }
+
+    const pageItems = Array.isArray(payload.items) ? payload.items : [];
+    items.push(...pageItems);
+    if (!pageItems.length || items.length >= Number(payload.totalItems || 0)) break;
+  }
+
+  return items;
+}
+
+async function saveBunnyVideo(video, parsed) {
+  const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
+  const videoId = video.guid || video.videoGuid || video.id;
+  if (!videoId) return null;
+
+  const result = await query(
+    `insert into bunny_media
+       (anime_id, anime_name, season, episode, dub, quality, original_name, bunny_video_id, embed_url, direct_url, status)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     on conflict (anime_id, season, episode, dub, quality)
+     do update set original_name = excluded.original_name,
+                   bunny_video_id = excluded.bunny_video_id,
+                   embed_url = excluded.embed_url,
+                   direct_url = excluded.direct_url,
+                   status = excluded.status,
+                   updated_at = now()
+     returning *`,
+    [
+      parsed.animeId,
+      parsed.animeName,
+      parsed.season,
+      parsed.episode,
+      parsed.dub,
+      parsed.quality,
+      parsed.originalName,
+      videoId,
+      bunnyEmbedUrl(libraryId, videoId),
+      bunnyDirectUrl(libraryId, videoId),
+      String(video.status ?? video.encodeProgress ?? "ready")
+    ]
+  );
+
+  return result.rows[0];
+}
+
 app.use(cors());
 app.use(express.json({ limit: "12mb" }));
 app.get("/script.js", async (_req, res) => {
@@ -516,15 +675,79 @@ app.post("/api/comments", requireAuth, async (req, res) => {
   });
 });
 
+app.post("/api/admin/bunny/sync", requireAuth, requireAdmin, async (_req, res) => {
+  if (!hasDatabase) {
+    return res.status(500).json({ error: "database_required" });
+  }
+
+  try {
+    const videos = await listBunnyVideos();
+    const synced = [];
+    const skipped = [];
+
+    for (const video of videos) {
+      const title = video.title || video.name || video.fileName || "";
+      const parsed = parseBunnyVideoTitle(title);
+      if (!parsed) {
+        skipped.push(title);
+        continue;
+      }
+
+      const saved = await saveBunnyVideo(video, parsed);
+      if (saved) synced.push(saved);
+    }
+
+    return res.json({
+      ok: true,
+      total: videos.length,
+      synced: synced.length,
+      skipped: skipped.slice(0, 40),
+      items: synced
+    });
+  } catch (error) {
+    console.error("Bunny sync failed:", error.message);
+    return res.status(error.status || 500).json({ error: error.message || "bunny_sync_failed" });
+  }
+});
+
 app.get("/api/media/:animeId/:season/:episode", async (req, res) => {
   const { animeId, season, episode } = req.params;
-  const result = await query(
-    `select anime_id, anime_name, season, episode, original_name, file_url, mime_type, created_at
+  const [localResult, bunnyResult] = await Promise.all([
+    query(
+      `select anime_id, anime_name, season, episode, original_name, file_url, mime_type, created_at,
+              'local' as provider,
+              null::text as dub,
+              null::text as quality,
+              null::text as embed_url
      from episode_media
      where anime_id = $1 and season = $2 and episode = $3`,
-    [animeId, season, episode]
-  );
-  res.json({ media: result.rows[0] || null });
+      [animeId, season, episode]
+    ),
+    query(
+      `select anime_id, anime_name, season, episode, original_name,
+              embed_url, direct_url as file_url, 'iframe' as mime_type,
+              created_at, 'bunny' as provider, dub, quality, bunny_video_id, status
+       from bunny_media
+       where anime_id = $1 and season = $2 and episode = $3
+       order by
+         case quality
+           when '2160p' then 1
+           when '1440p' then 2
+           when '1080p' then 3
+           when '720p' then 4
+           else 5
+         end,
+         dub`,
+      [animeId, season, episode]
+    )
+  ]);
+
+  const variants = [
+    ...localResult.rows,
+    ...bunnyResult.rows
+  ];
+
+  res.json({ media: variants[0] || null, variants });
 });
 
 app.post("/api/admin/media", requireAuth, requireAdmin, upload.single("media"), async (req, res) => {
