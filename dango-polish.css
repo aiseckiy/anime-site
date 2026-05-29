@@ -124,6 +124,12 @@
   line-height: 1.25;
 }
 
+.bunny-frame {
+  min-height: 440px;
+  border: 0;
+  border-radius: 8px;
+}
+
 @media (max-width: 860px) {
   .today-card {
     grid-template-columns: 1fr;
