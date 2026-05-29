@@ -148,8 +148,8 @@
         const result = await bunnyRequest("/api/admin/bunny/sync", { method: "POST" });
         uploadStatus.textContent = `Bunny готов: ${result.synced} видео привязано, ${result.skipped.length} пропущено.`;
         try {
-          if (typeof currentTitle !== "undefined" && currentEpisode) {
-            await loadBunnyAwareMedia(currentTitle, currentEpisode.season, currentEpisode.episode);
+          if (typeof state !== "undefined" && state.title && state.episode) {
+            await loadBunnyAwareMedia(state.title, state.episode.season, state.episode.episode);
           }
         } catch {}
       } catch (error) {
@@ -160,7 +160,7 @@
 
   function boot() {
     try {
-      loadEpisodeMedia = loadBunnyAwareMedia;
+      loadMedia = loadBunnyAwareMedia;
     } catch {}
     installBunnySyncButton();
   }
