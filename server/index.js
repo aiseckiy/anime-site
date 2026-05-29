@@ -778,6 +778,56 @@ app.post("/api/admin/media", requireAuth, requireAdmin, upload.single("media"), 
   res.status(201).json({ media: result.rows[0] });
 });
 
+function sanitizeStructure(body) {
+  const rawSeasons = Array.isArray(body?.seasons) ? body.seasons : [];
+  const seasons = rawSeasons.slice(0, 50).map((season) => {
+    const episodes = Math.min(2000, Math.max(1, Math.floor(Number(season?.episodes) || 1)));
+    const title = String(season?.title ?? "").trim().slice(0, 120);
+    const rawArcs = Array.isArray(season?.arcs) ? season.arcs : [];
+    const arcs = rawArcs.slice(0, 100).map((arc) => {
+      let from = Math.min(episodes, Math.max(1, Math.floor(Number(arc?.from) || 1)));
+      let to = Math.min(episodes, Math.max(1, Math.floor(Number(arc?.to) || from)));
+      if (to < from) [from, to] = [to, from];
+      return { name: String(arc?.name ?? "").trim().slice(0, 120), from, to };
+    });
+    return { title, episodes, arcs };
+  });
+  return { seasons };
+}
+
+app.get("/api/structure/:animeId", async (req, res) => {
+  if (!hasDatabase) return res.json({ structure: null });
+  try {
+    const result = await query("select data from anime_structure where anime_id = $1", [req.params.animeId]);
+    return res.json({ structure: result.rows[0]?.data || null });
+  } catch {
+    return res.json({ structure: null });
+  }
+});
+
+app.put("/api/admin/structure/:animeId", requireAuth, requireAdmin, async (req, res) => {
+  if (!hasDatabase) return res.status(500).json({ error: "database_required" });
+  const animeId = Number(req.params.animeId);
+  if (!Number.isInteger(animeId)) return res.status(400).json({ error: "invalid_anime_id" });
+
+  const structure = sanitizeStructure(req.body);
+  const result = await query(
+    `insert into anime_structure (anime_id, data)
+     values ($1, $2)
+     on conflict (anime_id)
+     do update set data = excluded.data, updated_at = now()
+     returning data`,
+    [animeId, JSON.stringify(structure)]
+  );
+  return res.json({ structure: result.rows[0].data });
+});
+
+app.delete("/api/admin/structure/:animeId", requireAuth, requireAdmin, async (req, res) => {
+  if (!hasDatabase) return res.status(500).json({ error: "database_required" });
+  await query("delete from anime_structure where anime_id = $1", [Number(req.params.animeId)]);
+  return res.json({ ok: true });
+});
+
 app.get(/.*/, (_req, res) => {
   res.sendFile(path.join(rootDir, "index.html"));
 });

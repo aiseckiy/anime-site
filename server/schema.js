@@ -95,6 +95,12 @@ export async function initSchema() {
     create index if not exists bunny_media_episode_idx
       on bunny_media (anime_id, season, episode);
 
+    create table if not exists anime_structure (
+      anime_id integer primary key,
+      data jsonb not null,
+      updated_at timestamptz not null default now()
+    );
+
     update users
     set role = 'admin'
     where lower(email) in ('adilhan.bekentaev@mail.ru', 'adimirten@gmail.com');

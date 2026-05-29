@@ -158,6 +158,169 @@
   display: none;
 }
 
+/* Season / arc structure */
+.arc-title {
+  margin: 14px 0 8px;
+  font-size: 15px;
+  color: var(--accent, #ff4fa2);
+  letter-spacing: .2px;
+}
+
+.structure-admin-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.structure-edit-button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--button-text, #fff);
+  background: var(--button, rgba(255,79,162,.25));
+  cursor: pointer;
+}
+
+/* Structure editor overlay */
+.se-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 2, 5, .72);
+}
+
+.se-panel {
+  width: min(760px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel, #140c12);
+  display: grid;
+  gap: 14px;
+}
+
+.se-panel h2 {
+  margin: 0;
+}
+
+.se-list {
+  display: grid;
+  gap: 14px;
+}
+
+.se-season {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2, rgba(255,255,255,.03));
+  display: grid;
+  gap: 10px;
+}
+
+.se-season-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.se-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted, #b9a7b2);
+}
+
+.se-panel input {
+  min-height: 34px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text, #fff);
+  background: rgba(0,0,0,.25);
+}
+
+.se-title { flex: 1 1 220px; }
+.se-eps { width: 84px; }
+.se-arc-from, .se-arc-to { width: 70px; }
+
+.se-arcs {
+  display: grid;
+  gap: 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+}
+
+.se-arc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.se-arc-name { flex: 1 1 180px; }
+
+.se-add-arc, .se-add-season {
+  justify-self: start;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text, #fff);
+  cursor: pointer;
+}
+
+.se-remove-season, .se-remove-arc, .se-cancel {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted, #b9a7b2);
+  cursor: pointer;
+}
+
+.se-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.se-save {
+  min-height: 38px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--accent, #ff4fa2);
+  cursor: pointer;
+}
+
+.se-reset {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted, #b9a7b2);
+  cursor: pointer;
+}
+
+.se-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted, #b9a7b2);
+}
+
 @media (max-width: 860px) {
   .today-card {
     grid-template-columns: 1fr;
