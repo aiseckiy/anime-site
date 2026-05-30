@@ -228,6 +228,41 @@ async function listBunnyVideos() {
   return items;
 }
 
+// Map Bunny collection guid -> season number, parsed from the collection name
+// (e.g. "1 сезон" -> 1, "Season 2" -> 2). Lets the admin organise videos into
+// per-season collections in Bunny and have the sync respect that.
+async function listBunnyCollections() {
+  const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
+  const accessKey = process.env.BUNNY_STREAM_API_KEY;
+  const map = new Map();
+  if (!libraryId || !accessKey) return map;
+
+  for (let page = 1; page <= 20; page += 1) {
+    const url = new URL(`https://video.bunnycdn.com/library/${libraryId}/collections`);
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("itemsPerPage", "100");
+
+    let response;
+    try {
+      response = await fetch(url, { headers: { AccessKey: accessKey, accept: "application/json" } });
+    } catch {
+      break;
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) break;
+
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    for (const item of items) {
+      const guid = item.guid || item.id;
+      const seasonMatch = String(item.name || "").match(/\d+/);
+      if (guid && seasonMatch) map.set(guid, Number(seasonMatch[0]));
+    }
+    if (!items.length || items.length < 100 || (page * 100) >= Number(payload.totalItems || 0)) break;
+  }
+
+  return map;
+}
+
 async function saveBunnyVideo(video, parsed) {
   const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
   const videoId = video.guid || video.videoGuid || video.id;
@@ -704,7 +739,10 @@ app.post("/api/admin/bunny/sync", requireAuth, requireAdmin, async (_req, res) =
   }
 
   try {
-    const videos = await listBunnyVideos();
+    const [videos, collectionSeasons] = await Promise.all([
+      listBunnyVideos(),
+      listBunnyCollections()
+    ]);
     const synced = [];
     const skipped = [];
 
@@ -715,6 +753,10 @@ app.post("/api/admin/bunny/sync", requireAuth, requireAdmin, async (_req, res) =
         skipped.push(title);
         continue;
       }
+
+      // A season-named Bunny collection overrides the season guessed from the title.
+      const collectionSeason = video.collectionId ? collectionSeasons.get(video.collectionId) : null;
+      if (collectionSeason) parsed.season = collectionSeason;
 
       const saved = await saveBunnyVideo(video, parsed);
       if (saved) synced.push(saved);

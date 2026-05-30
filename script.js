@@ -114,6 +114,7 @@ function stopPlayback() {
     video.classList.add("hidden");
     try { video.load(); } catch {}
   }
+  document.querySelector("#skipIntroButton")?.classList.add("hidden");
 }
 
 function routeTo(view, payload = {}, push = true) {
