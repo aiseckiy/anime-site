@@ -228,6 +228,17 @@ async function listBunnyVideos() {
   return items;
 }
 
+function seasonFromCollectionName(name) {
+  const text = String(name || "").toLowerCase();
+  // Prefer an explicit "season N" / "N сезон" pattern over any stray number.
+  let match = text.match(/(?:season|сезон[а-я]*|s)\s*[#:.]?\s*(\d{1,3})/);
+  if (match) return Number(match[1]);
+  match = text.match(/(\d{1,3})\s*(?:season|сезон[а-я]*)/);
+  if (match) return Number(match[1]);
+  match = text.match(/\d{1,3}/);
+  return match ? Number(match[0]) : null;
+}
+
 // Map Bunny collection guid -> season number, parsed from the collection name
 // (e.g. "1 сезон" -> 1, "Season 2" -> 2). Lets the admin organise videos into
 // per-season collections in Bunny and have the sync respect that.
@@ -254,8 +265,8 @@ async function listBunnyCollections() {
     const items = Array.isArray(payload.items) ? payload.items : [];
     for (const item of items) {
       const guid = item.guid || item.id;
-      const seasonMatch = String(item.name || "").match(/\d+/);
-      if (guid && seasonMatch) map.set(guid, Number(seasonMatch[0]));
+      const season = seasonFromCollectionName(item.name);
+      if (guid && season) map.set(guid, season);
     }
     if (!items.length || items.length < 100 || (page * 100) >= Number(payload.totalItems || 0)) break;
   }
@@ -267,6 +278,10 @@ async function saveBunnyVideo(video, parsed) {
   const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
   const videoId = video.guid || video.videoGuid || video.id;
   if (!videoId) return null;
+
+  // One Bunny video = one row. Drop any stale row left from an earlier sync
+  // where this video was classified into a different season/episode/quality.
+  await query("delete from bunny_media where bunny_video_id = $1", [videoId]);
 
   const result = await query(
     `insert into bunny_media
@@ -755,7 +770,8 @@ app.post("/api/admin/bunny/sync", requireAuth, requireAdmin, async (_req, res) =
       }
 
       // A season-named Bunny collection overrides the season guessed from the title.
-      const collectionSeason = video.collectionId ? collectionSeasons.get(video.collectionId) : null;
+      const collectionId = video.collectionId || video.collectionGuid || video.collection;
+      const collectionSeason = collectionId ? collectionSeasons.get(collectionId) : null;
       if (collectionSeason) parsed.season = collectionSeason;
 
       const saved = await saveBunnyVideo(video, parsed);
@@ -765,6 +781,7 @@ app.post("/api/admin/bunny/sync", requireAuth, requireAdmin, async (_req, res) =
     return res.json({
       ok: true,
       total: videos.length,
+      collectionsFound: collectionSeasons.size,
       synced: synced.length,
       skipped: skipped.slice(0, 40),
       items: synced
