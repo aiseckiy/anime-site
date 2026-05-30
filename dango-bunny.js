@@ -64,6 +64,31 @@
     return saved?.progress || 0;
   }
 
+  const SKIP_INTRO_SECONDS = 85;
+
+  function ensureBunnyPlayer(iframe) {
+    if (!window.playerjs || !iframe) return null;
+    if (!iframe._pjs) {
+      try { iframe._pjs = new window.playerjs.Player(iframe); } catch { return null; }
+    }
+    return iframe._pjs;
+  }
+
+  function ensureSkipButton() {
+    const { shell } = playerElements();
+    if (!shell) return null;
+    let button = document.querySelector("#skipIntroButton");
+    if (!button) {
+      button = document.createElement("button");
+      button.id = "skipIntroButton";
+      button.type = "button";
+      button.className = "skip-intro-button hidden";
+      button.textContent = "Пропустить заставку ⏭";
+      shell.appendChild(button);
+    }
+    return button;
+  }
+
   function applyVariant(variant, item, season, episode) {
     const { video, play, meta } = playerElements();
     const iframe = ensureIframe();
@@ -87,6 +112,22 @@
       video.preload = "metadata";
       video.src = variant.file_url;
       video.classList.remove("hidden");
+    }
+
+    const skip = ensureSkipButton();
+    if (skip) {
+      skip.classList.remove("hidden");
+      skip.onclick = () => {
+        if (variant.embed_url && iframe) {
+          const player = ensureBunnyPlayer(iframe);
+          if (!player) return;
+          player.getCurrentTime((current) => {
+            player.setCurrentTime((Number(current) || 0) + SKIP_INTRO_SECONDS);
+          });
+        } else if (variant.file_url) {
+          video.currentTime = (video.currentTime || 0) + SKIP_INTRO_SECONDS;
+        }
+      };
     }
 
     const progress = savedProgress(item, season, episode);
@@ -118,6 +159,7 @@
       iframe.classList.add("hidden");
       iframe.removeAttribute("src");
     }
+    document.querySelector("#skipIntroButton")?.classList.add("hidden");
     play?.classList.remove("hidden");
 
     try {
