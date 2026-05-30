@@ -115,6 +115,7 @@ function stopPlayback() {
     try { video.load(); } catch {}
   }
   document.querySelector("#skipIntroButton")?.classList.add("hidden");
+  document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
 }
 
 function routeTo(view, payload = {}, push = true) {

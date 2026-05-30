@@ -857,7 +857,20 @@ function sanitizeStructure(body) {
     });
     return { title, episodes, arcs };
   });
-  return { seasons };
+
+  const rawSkip = body?.skip || {};
+  const seconds = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    const n = Math.floor(Number(value));
+    return Number.isFinite(n) && n >= 0 ? Math.min(n, 100000) : null;
+  };
+  const skip = {
+    openingStart: seconds(rawSkip.openingStart),
+    openingEnd: seconds(rawSkip.openingEnd),
+    nextStart: seconds(rawSkip.nextStart)
+  };
+
+  return { seasons, skip };
 }
 
 app.get("/api/structure/:animeId", async (req, res) => {
