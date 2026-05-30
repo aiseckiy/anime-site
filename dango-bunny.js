@@ -236,7 +236,7 @@
       uploadStatus.textContent = "Сканирую Bunny Stream и сортирую видео...";
       try {
         const result = await bunnyRequest("/api/admin/bunny/sync", { method: "POST" });
-        uploadStatus.textContent = `Bunny готов: ${result.synced} видео привязано, ${result.skipped.length} пропущено.`;
+        uploadStatus.textContent = `Bunny готов: ${result.synced} видео привязано, ${result.skipped.length} пропущено, коллекций-сезонов найдено: ${result.collectionsFound ?? 0}.`;
         try {
           if (typeof state !== "undefined" && state.title && state.episode) {
             await loadBunnyAwareMedia(state.title, state.episode.season, state.episode.episode);
