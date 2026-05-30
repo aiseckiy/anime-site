@@ -29,6 +29,33 @@
     return input;
   }
 
+  // Timecodes accept either "m:ss" or plain seconds; stored as seconds.
+  function parseTime(value) {
+    const raw = String(value == null ? "" : value).trim();
+    if (!raw) return null;
+    if (raw.includes(":")) {
+      const [m, s] = raw.split(":");
+      const total = (Number(m) || 0) * 60 + (Number(s) || 0);
+      return Number.isFinite(total) && total >= 0 ? Math.floor(total) : null;
+    }
+    const n = Math.floor(Number(raw));
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }
+
+  function formatTime(seconds) {
+    if (seconds == null || seconds === "") return "";
+    const n = Math.max(0, Math.floor(Number(seconds) || 0));
+    return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
+  }
+
+  function timeInput(seconds, placeholder) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = placeholder;
+    input.value = formatTime(seconds);
+    return input;
+  }
+
   function readModel(listNode) {
     return [...listNode.querySelectorAll(".se-season")].map((seasonNode) => {
       const episodes = Math.max(1, Number(seasonNode.querySelector(".se-eps").value) || 1);
@@ -141,6 +168,21 @@
       list.append(buildSeasonCard({ title: "", episodes: 12, arcs: [] }, list.children.length, renderList));
     });
 
+    const currentSkip = (state.structures[item.id] && state.structures[item.id].skip) || {};
+    const skipBox = document.createElement("div");
+    skipBox.className = "se-skip";
+    const skipTitle = document.createElement("h3");
+    skipTitle.textContent = "Кнопки в плеере (таймкоды, формат м:сс)";
+    const openStartInput = timeInput(currentSkip.openingStart, "напр. 1:25");
+    const openEndInput = timeInput(currentSkip.openingEnd, "напр. 2:55");
+    const nextStartInput = timeInput(currentSkip.nextStart, "напр. 22:30");
+    skipBox.append(
+      skipTitle,
+      field("«Пропустить опенинг» — показать с ", openStartInput),
+      field("…и перемотать до ", openEndInput),
+      field("«Следующая серия» — показать с ", nextStartInput)
+    );
+
     const status = document.createElement("p");
     status.className = "se-status";
 
@@ -153,13 +195,18 @@
     save.textContent = "Сохранить";
     save.addEventListener("click", async () => {
       const seasons = readModel(list);
+      const skip = {
+        openingStart: parseTime(openStartInput.value),
+        openingEnd: parseTime(openEndInput.value),
+        nextStart: parseTime(nextStartInput.value)
+      };
       status.textContent = "Сохраняю...";
       try {
         const data = await api(`/api/admin/structure/${item.id}`, {
           method: "PUT",
-          body: JSON.stringify({ seasons })
+          body: JSON.stringify({ seasons, skip })
         });
-        state.structures[item.id] = data.structure || { seasons };
+        state.structures[item.id] = data.structure || { seasons, skip };
         overlay.remove();
         renderSeasons(item);
       } catch (error) {
@@ -190,7 +237,7 @@
     cancel.addEventListener("click", () => overlay.remove());
 
     actions.append(save, reset, cancel);
-    panel.append(heading, list, addSeason, status, actions);
+    panel.append(heading, list, addSeason, skipBox, status, actions);
     overlay.append(panel);
     overlay.addEventListener("click", () => overlay.remove());
     document.body.append(overlay);

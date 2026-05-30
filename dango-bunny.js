@@ -64,29 +64,69 @@
     return saved?.progress || 0;
   }
 
-  const SKIP_INTRO_SECONDS = 85;
+  // The two timed overlay buttons are driven by per-anime timecodes saved in
+  // the title structure (state.structures[id].skip). Each button is visible for
+  // a 15s window starting at its configured timecode.
+  const SKIP_WINDOW = 15;
+  let activeSkip = null;
+  let activeMode = null;        // "bunny" | "local"
+  let activeBunnyPlayer = null;
+  let activeVideoEl = null;
 
   function ensureBunnyPlayer(iframe) {
     if (!window.playerjs || !iframe) return null;
     if (!iframe._pjs) {
       try { iframe._pjs = new window.playerjs.Player(iframe); } catch { return null; }
+      iframe._pjs.on("timeupdate", (data) => handleTime(data && data.seconds));
     }
     return iframe._pjs;
   }
 
-  function ensureSkipButton() {
+  function seekTo(seconds) {
+    if (seconds == null) return;
+    if (activeMode === "bunny" && activeBunnyPlayer) {
+      try { activeBunnyPlayer.setCurrentTime(seconds); } catch {}
+    } else if (activeMode === "local" && activeVideoEl) {
+      try { activeVideoEl.currentTime = seconds; } catch {}
+    }
+  }
+
+  function handleTime(seconds) {
+    const t = Number(seconds) || 0;
+    const skip = activeSkip || {};
+    const openBtn = document.querySelector("#skipIntroButton");
+    const nextBtn = document.querySelector("#nextEpiOverlay");
+    if (openBtn) {
+      const s = skip.openingStart;
+      openBtn.classList.toggle("hidden", !(s != null && skip.openingEnd != null && t >= s && t < s + SKIP_WINDOW));
+    }
+    if (nextBtn) {
+      const s = skip.nextStart;
+      nextBtn.classList.toggle("hidden", !(s != null && t >= s && t < s + SKIP_WINDOW));
+    }
+  }
+
+  function ensureOverlayButtons() {
     const { shell } = playerElements();
-    if (!shell) return null;
-    let button = document.querySelector("#skipIntroButton");
-    if (!button) {
-      button = document.createElement("button");
+    if (!shell) return;
+    if (!document.querySelector("#skipIntroButton")) {
+      const button = document.createElement("button");
       button.id = "skipIntroButton";
       button.type = "button";
       button.className = "skip-intro-button hidden";
-      button.textContent = "Пропустить заставку ⏭";
+      button.textContent = "Пропустить опенинг ⏭";
+      button.onclick = () => seekTo(activeSkip && activeSkip.openingEnd);
       shell.appendChild(button);
     }
-    return button;
+    if (!document.querySelector("#nextEpiOverlay")) {
+      const button = document.createElement("button");
+      button.id = "nextEpiOverlay";
+      button.type = "button";
+      button.className = "next-epi-overlay hidden";
+      button.textContent = "Следующая серия →";
+      button.onclick = () => document.querySelector("#nextEpisode")?.click();
+      shell.appendChild(button);
+    }
   }
 
   function applyVariant(variant, item, season, episode) {
@@ -114,20 +154,23 @@
       video.classList.remove("hidden");
     }
 
-    const skip = ensureSkipButton();
-    if (skip) {
-      skip.classList.remove("hidden");
-      skip.onclick = () => {
-        if (variant.embed_url && iframe) {
-          const player = ensureBunnyPlayer(iframe);
-          if (!player) return;
-          player.getCurrentTime((current) => {
-            player.setCurrentTime((Number(current) || 0) + SKIP_INTRO_SECONDS);
-          });
-        } else if (variant.file_url) {
-          video.currentTime = (video.currentTime || 0) + SKIP_INTRO_SECONDS;
-        }
-      };
+    ensureOverlayButtons();
+    document.querySelector("#skipIntroButton")?.classList.add("hidden");
+    document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
+    activeSkip = (typeof state !== "undefined" && state.structures && state.structures[item.id] && state.structures[item.id].skip) || null;
+
+    if (variant.embed_url && iframe) {
+      activeMode = "bunny";
+      activeVideoEl = null;
+      activeBunnyPlayer = ensureBunnyPlayer(iframe);
+    } else if (variant.file_url) {
+      activeMode = "local";
+      activeVideoEl = video;
+      activeBunnyPlayer = null;
+      if (!video._skipBound) {
+        video.addEventListener("timeupdate", () => handleTime(video.currentTime));
+        video._skipBound = true;
+      }
     }
 
     const progress = savedProgress(item, season, episode);
@@ -160,6 +203,7 @@
       iframe.removeAttribute("src");
     }
     document.querySelector("#skipIntroButton")?.classList.add("hidden");
+    document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
     play?.classList.remove("hidden");
 
     try {
