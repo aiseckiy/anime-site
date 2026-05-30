@@ -72,38 +72,84 @@
   let activeMode = null;        // "bunny" | "local"
   let activeBunnyPlayer = null;
   let activeVideoEl = null;
+  let pollTimer = null;
+  let pollTicks = 0;
+  let gotTime = false;
 
   function ensureBunnyPlayer(iframe) {
     if (!window.playerjs || !iframe) return null;
     if (!iframe._pjs) {
       try { iframe._pjs = new window.playerjs.Player(iframe); } catch { return null; }
-      iframe._pjs.on("timeupdate", (data) => handleTime(data && data.seconds));
+      iframe._pjs.on("timeupdate", (data) => { if (data) handleTime(data.seconds); });
     }
     return iframe._pjs;
   }
 
   function seekTo(seconds) {
     if (seconds == null) return;
-    if (activeMode === "bunny" && activeBunnyPlayer) {
-      try { activeBunnyPlayer.setCurrentTime(seconds); } catch {}
+    if (activeMode === "bunny") {
+      const player = activeBunnyPlayer || ensureBunnyPlayer(ensureIframe());
+      try { player && player.setCurrentTime(seconds); } catch {}
     } else if (activeMode === "local" && activeVideoEl) {
       try { activeVideoEl.currentTime = seconds; } catch {}
     }
   }
 
-  function handleTime(seconds) {
+  function showButton(el, visible) {
+    if (el) el.classList.toggle("hidden", !visible);
+  }
+
+  // Show each button for a 15s window from its timecode. If we can't read the
+  // player time (Bunny/Player.js not reporting), fall back to showing the
+  // configured buttons permanently so they are still usable.
+  function handleTime(seconds, forceShow) {
     const t = Number(seconds) || 0;
     const skip = activeSkip || {};
     const openBtn = document.querySelector("#skipIntroButton");
     const nextBtn = document.querySelector("#nextEpiOverlay");
-    if (openBtn) {
-      const s = skip.openingStart;
-      openBtn.classList.toggle("hidden", !(s != null && skip.openingEnd != null && t >= s && t < s + SKIP_WINDOW));
+    const openConfigured = skip.openingEnd != null;
+    const nextConfigured = skip.nextStart != null;
+    if (forceShow) {
+      showButton(openBtn, openConfigured);
+      showButton(nextBtn, nextConfigured);
+      return;
     }
-    if (nextBtn) {
-      const s = skip.nextStart;
-      nextBtn.classList.toggle("hidden", !(s != null && t >= s && t < s + SKIP_WINDOW));
-    }
+    const os = skip.openingStart;
+    showButton(openBtn, openConfigured && os != null && t >= os && t < os + SKIP_WINDOW);
+    showButton(nextBtn, nextConfigured && t >= skip.nextStart && t < skip.nextStart + SKIP_WINDOW);
+  }
+
+  function stopTimePolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  function startTimePolling() {
+    stopTimePolling();
+    pollTicks = 0;
+    gotTime = false;
+    pollTimer = setInterval(() => {
+      const playerView = document.querySelector("#playerView");
+      if (!playerView || !playerView.classList.contains("active")) {
+        stopTimePolling();
+        showButton(document.querySelector("#skipIntroButton"), false);
+        showButton(document.querySelector("#nextEpiOverlay"), false);
+        return;
+      }
+      pollTicks += 1;
+      const player = activeBunnyPlayer || (activeBunnyPlayer = ensureBunnyPlayer(ensureIframe()));
+      if (player) {
+        try {
+          player.getCurrentTime((value) => {
+            if (typeof value === "number" && !Number.isNaN(value)) {
+              gotTime = true;
+              handleTime(value);
+            }
+          });
+        } catch {}
+      }
+      // Fallback: Player.js never reported a time -> just reveal the buttons.
+      if (!gotTime && pollTicks >= 8) handleTime(0, true);
+    }, 800);
   }
 
   function ensureOverlayButtons() {
@@ -163,10 +209,12 @@
       activeMode = "bunny";
       activeVideoEl = null;
       activeBunnyPlayer = ensureBunnyPlayer(iframe);
+      startTimePolling();
     } else if (variant.file_url) {
       activeMode = "local";
       activeVideoEl = video;
       activeBunnyPlayer = null;
+      stopTimePolling();
       if (!video._skipBound) {
         video.addEventListener("timeupdate", () => handleTime(video.currentTime));
         video._skipBound = true;
@@ -202,6 +250,7 @@
       iframe.classList.add("hidden");
       iframe.removeAttribute("src");
     }
+    stopTimePolling();
     document.querySelector("#skipIntroButton")?.classList.add("hidden");
     document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
     play?.classList.remove("hidden");
