@@ -1,7 +1,7 @@
 function dangoAuthErrorText(code, mode) {
   const messages = {
     user_not_found: "Аккаунт не найден. Переключил на регистрацию: придумайте логин и создайте профиль.",
-    wrong_password: "Неверный пароль. Нажмите 'Сменить пароль', получите код на почту и задайте новый пароль.",
+    wrong_password: "Неверный пароль. Проверьте раскладку и попробуйте снова.",
     invalid_credentials: "Неверная почта или пароль. Если аккаунта еще нет, нажмите Регистрация.",
     user_already_exists: "Аккаунт с этой почтой уже есть. Переключил на вход: введите его пароль.",
     email_password_required: "Введите почту и пароль.",
@@ -112,7 +112,6 @@ async function createAccount(mode) {
   } catch (error) {
     document.querySelector("#accountHint").textContent = dangoAuthErrorText(error.message, mode);
     if (error.message === "user_not_found") setAuthMode("create");
-    if (error.message === "wrong_password" || error.message === "invalid_credentials") setAuthMode("reset");
     if (error.message === "user_already_exists") setAuthMode("login");
   }
 }
@@ -149,40 +148,8 @@ function setAuthMode(mode) {
 }
 
 function installResetPasswordControls() {
-  const switcher = document.querySelector("#authSwitch");
-  const passwordInput = document.querySelector("#passwordInput");
-  const authActions = document.querySelector(".auth-actions");
-
-  if (switcher && !switcher.querySelector('[data-auth-mode="reset"]')) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.authMode = "reset";
-    button.textContent = "Сменить пароль";
-    button.addEventListener("click", () => setAuthMode("reset"));
-    switcher.append(button);
-  }
-
-  if (passwordInput && !document.querySelector("#resetCodeInput")) {
-    const codeInput = document.createElement("input");
-    codeInput.id = "resetCodeInput";
-    codeInput.className = "hidden";
-    codeInput.inputMode = "numeric";
-    codeInput.maxLength = 6;
-    codeInput.placeholder = "Код из письма";
-    passwordInput.insertAdjacentElement("afterend", codeInput);
-  }
-
-  if (authActions && !document.querySelector("#googleAuthButton")) {
-    const googleButton = document.createElement("button");
-    googleButton.id = "googleAuthButton";
-    googleButton.type = "button";
-    googleButton.textContent = "Войти через Google";
-    googleButton.addEventListener("click", () => {
-      window.location.href = "/api/auth/google";
-    });
-    authActions.append(googleButton);
-  }
+  // Google login and the password-reset flow were removed from the UI.
+  // Authentication is e-mail + password only (stored in the database).
 }
 
-installResetPasswordControls();
 dangoFinishGoogleRedirect();
