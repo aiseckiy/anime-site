@@ -265,14 +265,37 @@ async function saveBunnyVideo(video, parsed) {
 
 app.use(cors());
 app.use(express.json({ limit: "12mb" }));
+
+// Cache-busting: a new id every deploy/restart. Asset URLs in index.html get
+// `?v=buildId` appended so phones/browsers always fetch the latest JS/CSS
+// instead of serving a stale cached version.
+const buildId = Date.now().toString(36);
+let indexHtmlCache = null;
+async function renderIndex() {
+  if (!indexHtmlCache) {
+    const raw = await fs.readFile(path.join(rootDir, "index.html"), "utf8");
+    indexHtmlCache = raw.replace(
+      /(src|href)="(?!https?:|\/\/)([^"]+\.(?:js|css))"/g,
+      `$1="$2?v=${buildId}"`
+    );
+  }
+  return indexHtmlCache;
+}
+async function sendIndex(_req, res) {
+  res.set("Cache-Control", "no-cache");
+  res.type("html").send(await renderIndex());
+}
+
+app.get("/", sendIndex);
 app.get("/script.js", async (_req, res) => {
   const [mainScript, authFixes] = await Promise.all([
     fs.readFile(path.join(rootDir, "script.js"), "utf8"),
     fs.readFile(path.join(rootDir, "auth-fixes.js"), "utf8").catch(() => "")
   ]);
+  res.set("Cache-Control", "no-cache");
   res.type("application/javascript").send(`${mainScript}\n\n${authFixes}`);
 });
-app.use(express.static(rootDir));
+app.use(express.static(rootDir, { index: false }));
 app.use("/uploads", express.static(uploadsDir));
 
 app.get("/api/health", (_req, res) => {
@@ -828,8 +851,8 @@ app.delete("/api/admin/structure/:animeId", requireAuth, requireAdmin, async (re
   return res.json({ ok: true });
 });
 
-app.get(/.*/, (_req, res) => {
-  res.sendFile(path.join(rootDir, "index.html"));
+app.get(/.*/, (req, res) => {
+  sendIndex(req, res);
 });
 
 try {
