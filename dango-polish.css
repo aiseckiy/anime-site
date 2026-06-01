@@ -286,6 +286,10 @@
   opacity: .7;
 }
 
+.quality-label.hidden {
+  display: none;
+}
+
 /* Sibnet admin embed form */
 #sibnetInput {
   width: 100%;

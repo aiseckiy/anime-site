@@ -34,6 +34,52 @@
     return parts.length ? parts.join(" • ") : "Видео";
   }
 
+  function qualityElements() {
+    return {
+      label: document.querySelector("#qualityLabel"),
+      select: document.querySelector("#qualitySelect")
+    };
+  }
+
+  function clearHls(video) {
+    if (video && video._hls) {
+      try { video._hls.destroy(); } catch {}
+      video._hls = null;
+    }
+    qualityElements().label?.classList.add("hidden");
+  }
+
+  function buildQualityMenu(hls) {
+    const { label, select } = qualityElements();
+    if (!label || !select) return;
+    const levels = hls.levels || [];
+    if (levels.length <= 1) { label.classList.add("hidden"); return; }
+    select.innerHTML = `<option value="-1">Авто</option>` + levels.map((level, index) => {
+      const name = level.height ? `${level.height}p` : `${Math.round((level.bitrate || 0) / 1000)}k`;
+      return `<option value="${index}">${name}</option>`;
+    }).join("");
+    select.value = "-1";
+    select.onchange = () => { hls.currentLevel = Number(select.value); };
+    label.classList.remove("hidden");
+  }
+
+  // Play a direct video URL in our own <video>: .m3u8 via hls.js (adaptive +
+  // quality menu), other formats natively.
+  function attachHls(video, url) {
+    clearHls(video);
+    video.preload = "metadata";
+    const isM3u8 = /\.m3u8(\?|$)/i.test(url);
+    if (isM3u8 && window.Hls && window.Hls.isSupported()) {
+      const hls = new window.Hls();
+      video._hls = hls;
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(window.Hls.Events.MANIFEST_PARSED, () => buildQualityMenu(hls));
+    } else {
+      video.src = url;
+    }
+  }
+
   async function bunnyRequest(path, options = {}) {
     const headers = { ...(options.headers || {}) };
     const token = localStorage.getItem("dangoToken") || "";
@@ -183,6 +229,7 @@
     // Show a preview frame (poster) instead of a black screen. Nothing
     // autoplays — the user starts playback with the built-in play button.
     play?.classList.add("hidden");
+    clearHls(video);
 
     const isBunnyEmbed = !!variant.embed_url && /mediadelivery\.net/i.test(variant.embed_url);
 
@@ -201,8 +248,7 @@
     } else if (variant.file_url) {
       iframe?.classList.add("hidden");
       if (iframe) iframe.removeAttribute("src");
-      video.preload = "metadata";
-      video.src = variant.file_url;
+      attachHls(video, variant.file_url);
       video.classList.remove("hidden");
     }
 

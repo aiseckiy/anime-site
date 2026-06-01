@@ -117,6 +117,8 @@ export async function initSchema() {
     create index if not exists sibnet_media_episode_idx
       on sibnet_media (anime_id, season, episode);
 
+    alter table sibnet_media add column if not exists kind text not null default 'embed';
+
     update users
     set role = 'admin'
     where lower(email) in ('adilhan.bekentaev@mail.ru', 'adimirten@gmail.com');

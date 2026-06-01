@@ -7,6 +7,7 @@
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2283255091955030"
             crossorigin="anonymous"></script>
     <script async src="https://cdn.embed.ly/player-0.1.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="dango-polish.css" />
   </head>
@@ -251,6 +252,10 @@
                 <option>Оригинал + субтитры</option>
               </select>
             </label>
+            <label class="quality-label hidden" id="qualityLabel">
+              Качество
+              <select id="qualitySelect"></select>
+            </label>
             <label>
               Прогресс просмотра
               <input id="progressRange" type="range" min="0" max="100" value="12" />
@@ -259,8 +264,15 @@
           </div>
           <form class="admin-upload hidden" id="sibnetForm">
             <label>
-              Код плеера Sibnet для этой серии
-              <textarea id="sibnetInput" rows="3" placeholder="Вставьте сюда код &lt;iframe ... sibnet.ru ...&gt;, ссылку или videoid"></textarea>
+              Тип источника
+              <select id="sourceKind">
+                <option value="hls">Прямая ссылка (m3u8 / mp4) — наш плеер</option>
+                <option value="embed">Embed-код (Sibnet / iframe)</option>
+              </select>
+            </label>
+            <label>
+              Ссылка на видео или embed-код для этой серии
+              <textarea id="sibnetInput" rows="3" placeholder="https://.../playlist.m3u8 — или код &lt;iframe ... &gt;, или videoid"></textarea>
             </label>
             <div class="sibnet-actions">
               <button type="submit">Сохранить плеер для этой серии</button>
