@@ -115,7 +115,7 @@ function stopPlayback() {
     video.classList.add("hidden");
     try { video.load(); } catch {}
   }
-  document.querySelector("#qualityLabel")?.classList.add("hidden");
+  document.querySelector(".dango-controls")?.classList.add("hidden");
   document.querySelector("#skipIntroButton")?.classList.add("hidden");
   document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
 }
@@ -537,6 +537,8 @@ async function prefillSibnet() {
     input.value = saved?.file_url || saved?.embed_url || "";
     const kindSelect = $("#sourceKind");
     if (kindSelect && saved) kindSelect.value = saved.provider === "hls" ? "hls" : "embed";
+    const dubInput = $("#sibnetDub");
+    if (dubInput && saved?.dub) dubInput.value = saved.dub;
   } catch {
     input.value = "";
   }
@@ -669,7 +671,8 @@ function initEvents() {
           season: state.episode.season,
           episode: state.episode.episode,
           embed,
-          kind: $("#sourceKind")?.value || "hls"
+          kind: $("#sourceKind")?.value || "hls",
+          label: $("#sibnetDub")?.value.trim() || "anilibra"
         })
       });
       $("#sibnetStatus").textContent = "Плеер сохранён для этой серии.";

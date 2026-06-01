@@ -228,7 +228,7 @@
         <button class="back-button" id="backToTitle" type="button">← Назад к сериям</button>
         <section class="player-page">
           <div class="fake-player">
-            <video class="episode-video hidden" id="episodeVideo" controls></video>
+            <video class="episode-video hidden" id="episodeVideo" playsinline></video>
           </div>
           <div class="player-info">
             <p class="eyebrow">плеер</p>
@@ -252,10 +252,6 @@
                 <option>Оригинал + субтитры</option>
               </select>
             </label>
-            <label class="quality-label hidden" id="qualityLabel">
-              Качество
-              <select id="qualitySelect"></select>
-            </label>
             <label>
               Прогресс просмотра
               <input id="progressRange" type="range" min="0" max="100" value="12" />
@@ -269,6 +265,10 @@
                 <option value="hls">Прямая ссылка (m3u8 / mp4) — наш плеер</option>
                 <option value="embed">Embed-код (Sibnet / iframe)</option>
               </select>
+            </label>
+            <label>
+              Озвучка (метка для этого источника)
+              <input id="sibnetDub" type="text" value="anilibra" placeholder="например: anilibra" />
             </label>
             <label>
               Ссылка на видео или embed-код для этой серии
