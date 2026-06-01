@@ -137,6 +137,170 @@
     return card;
   }
 
+  // One custom-button row: label + show-at + action (seek/next) + seek-to.
+  function buildMarkerRow(marker = {}) {
+    const row = document.createElement("div");
+    row.className = "se-marker";
+
+    const label = document.createElement("input");
+    label.type = "text";
+    label.className = "se-marker-label";
+    label.placeholder = "Текст кнопки (напр. Пропустить заставку)";
+    label.value = marker.label || "";
+
+    const showAt = timeInput(marker.showAt, "показать с, напр. 0:30");
+    showAt.className = "se-marker-show";
+
+    const action = document.createElement("select");
+    action.className = "se-marker-action";
+    action.innerHTML = `<option value="seek">Перемотать до…</option><option value="next">Следующая серия</option>`;
+    action.value = marker.action === "next" ? "next" : "seek";
+
+    const seekTo = timeInput(marker.seekTo, "до, напр. 1:30");
+    seekTo.className = "se-marker-seek";
+    const syncSeek = () => { seekTo.style.display = action.value === "next" ? "none" : ""; };
+    action.addEventListener("change", syncSeek);
+    syncSeek();
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "se-remove-arc";
+    remove.textContent = "×";
+    remove.title = "Удалить кнопку";
+    remove.addEventListener("click", () => row.remove());
+
+    row.append(label, field("⏱ ", showAt), action, seekTo, remove);
+    return row;
+  }
+
+  // Reusable "buttons in the player" editor (skip timecodes + custom buttons).
+  // Returns the DOM node plus a read() that yields the skip object.
+  function buildSkipSection(currentSkip = {}) {
+    const box = document.createElement("div");
+    box.className = "se-skip";
+
+    const skipTitle = document.createElement("h3");
+    skipTitle.textContent = "Кнопки в плеере (таймкоды, формат м:сс)";
+    const openStartInput = timeInput(currentSkip.openingStart, "напр. 1:25");
+    const openEndInput = timeInput(currentSkip.openingEnd, "напр. 2:55");
+    const nextStartInput = timeInput(currentSkip.nextStart, "напр. 22:30");
+    box.append(
+      skipTitle,
+      field("«Пропустить опенинг» — показать с ", openStartInput),
+      field("…и перемотать до ", openEndInput),
+      field("«Следующая серия» — показать с ", nextStartInput)
+    );
+
+    const markersWrap = document.createElement("div");
+    markersWrap.className = "se-markers";
+    (Array.isArray(currentSkip.markers) ? currentSkip.markers : []).forEach((marker) => markersWrap.append(buildMarkerRow(marker)));
+
+    const markersTitle = document.createElement("h3");
+    markersTitle.textContent = "Доп. кнопки (можно добавлять свои)";
+    const addMarker = document.createElement("button");
+    addMarker.type = "button";
+    addMarker.className = "se-add-arc";
+    addMarker.textContent = "+ Добавить кнопку";
+    addMarker.addEventListener("click", () => markersWrap.append(buildMarkerRow()));
+    box.append(markersTitle, markersWrap, addMarker);
+
+    const read = () => ({
+      openingStart: parseTime(openStartInput.value),
+      openingEnd: parseTime(openEndInput.value),
+      nextStart: parseTime(nextStartInput.value),
+      markers: [...markersWrap.querySelectorAll(".se-marker")].map((row) => {
+        const action = row.querySelector(".se-marker-action").value === "next" ? "next" : "seek";
+        return {
+          label: row.querySelector(".se-marker-label").value,
+          showAt: parseTime(row.querySelector(".se-marker-show").value),
+          action,
+          seekTo: action === "seek" ? parseTime(row.querySelector(".se-marker-seek").value) : null
+        };
+      }).filter((marker) => marker.showAt != null)
+    });
+
+    return { node: box, read };
+  }
+
+  // Focused editor opened from the player: edits ONLY the buttons for the
+  // currently open episode (no season/arc structure).
+  window.openPlayerButtonsEditor = function openPlayerButtonsEditor(item, season, episode) {
+    if (!isAdmin() || !item) return;
+    document.querySelector(".se-overlay")?.remove();
+
+    const structure = state.structures[item.id] || {};
+    const key = `s${season}e${episode}`;
+    const currentSkip = (structure.episodeSkips && structure.episodeSkips[key]) || {};
+
+    const overlay = document.createElement("div");
+    overlay.className = "se-overlay";
+    const panel = document.createElement("div");
+    panel.className = "se-panel";
+    panel.addEventListener("click", (event) => event.stopPropagation());
+
+    const heading = document.createElement("h2");
+    heading.textContent = `Кнопки плеера — ${season} сезон, ${episode} серия`;
+    const hint = document.createElement("p");
+    hint.className = "se-status";
+    hint.textContent = `${item.name}. Настройки действуют только для этой серии.`;
+
+    const skip = buildSkipSection(currentSkip);
+
+    const status = document.createElement("p");
+    status.className = "se-status";
+
+    const actions = document.createElement("div");
+    actions.className = "se-actions";
+
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "se-save";
+    save.textContent = "Сохранить";
+    save.addEventListener("click", async () => {
+      status.textContent = "Сохраняю...";
+      try {
+        const data = await api(`/api/admin/episode-skip/${item.id}/${season}/${episode}`, {
+          method: "PUT",
+          body: JSON.stringify({ skip: skip.read() })
+        });
+        if (data.structure) state.structures[item.id] = data.structure;
+        overlay.remove();
+      } catch (error) {
+        status.textContent = `Ошибка: ${error.message}`;
+      }
+    });
+
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "se-reset";
+    reset.textContent = "Очистить для этой серии";
+    reset.addEventListener("click", async () => {
+      status.textContent = "Очищаю...";
+      try {
+        const data = await api(`/api/admin/episode-skip/${item.id}/${season}/${episode}`, {
+          method: "PUT",
+          body: JSON.stringify({ skip: { openingStart: null, openingEnd: null, nextStart: null, markers: [] } })
+        });
+        if (data.structure) state.structures[item.id] = data.structure;
+        overlay.remove();
+      } catch (error) {
+        status.textContent = `Ошибка: ${error.message}`;
+      }
+    });
+
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "se-cancel";
+    cancel.textContent = "Отмена";
+    cancel.addEventListener("click", () => overlay.remove());
+
+    actions.append(save, reset, cancel);
+    panel.append(heading, hint, skip.node, status, actions);
+    overlay.append(panel);
+    overlay.addEventListener("click", () => overlay.remove());
+    document.body.append(overlay);
+  };
+
   window.openStructureEditor = function openStructureEditor(item) {
     if (!isAdmin()) return;
     document.querySelector(".se-overlay")?.remove();
@@ -169,77 +333,8 @@
     });
 
     const currentSkip = (state.structures[item.id] && state.structures[item.id].skip) || {};
-    const skipBox = document.createElement("div");
-    skipBox.className = "se-skip";
-    const skipTitle = document.createElement("h3");
-    skipTitle.textContent = "Кнопки в плеере (таймкоды, формат м:сс)";
-    const openStartInput = timeInput(currentSkip.openingStart, "напр. 1:25");
-    const openEndInput = timeInput(currentSkip.openingEnd, "напр. 2:55");
-    const nextStartInput = timeInput(currentSkip.nextStart, "напр. 22:30");
-    skipBox.append(
-      skipTitle,
-      field("«Пропустить опенинг» — показать с ", openStartInput),
-      field("…и перемотать до ", openEndInput),
-      field("«Следующая серия» — показать с ", nextStartInput)
-    );
-
-    // Custom (extra) buttons: title + show-at + action (seek/next-episode).
-    const markersWrap = document.createElement("div");
-    markersWrap.className = "se-markers";
-    const buildMarkerRow = (marker = {}) => {
-      const row = document.createElement("div");
-      row.className = "se-marker";
-
-      const label = document.createElement("input");
-      label.type = "text";
-      label.className = "se-marker-label";
-      label.placeholder = "Текст кнопки (напр. Пропустить заставку)";
-      label.value = marker.label || "";
-
-      const showAt = timeInput(marker.showAt, "показать с, напр. 0:30");
-      showAt.className = "se-marker-show";
-
-      const action = document.createElement("select");
-      action.className = "se-marker-action";
-      action.innerHTML = `<option value="seek">Перемотать до…</option><option value="next">Следующая серия</option>`;
-      action.value = marker.action === "next" ? "next" : "seek";
-
-      const seekTo = timeInput(marker.seekTo, "до, напр. 1:30");
-      seekTo.className = "se-marker-seek";
-      const syncSeek = () => { seekTo.style.display = action.value === "next" ? "none" : ""; };
-      action.addEventListener("change", syncSeek);
-      syncSeek();
-
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "se-remove-arc";
-      remove.textContent = "×";
-      remove.title = "Удалить кнопку";
-      remove.addEventListener("click", () => row.remove());
-
-      row.append(label, field("⏱ ", showAt), action, seekTo, remove);
-      return row;
-    };
-    (Array.isArray(currentSkip.markers) ? currentSkip.markers : []).forEach((marker) => markersWrap.append(buildMarkerRow(marker)));
-
-    const markersTitle = document.createElement("h3");
-    markersTitle.textContent = "Доп. кнопки (можно добавлять свои)";
-    const addMarker = document.createElement("button");
-    addMarker.type = "button";
-    addMarker.className = "se-add-arc";
-    addMarker.textContent = "+ Добавить кнопку";
-    addMarker.addEventListener("click", () => markersWrap.append(buildMarkerRow()));
-    skipBox.append(markersTitle, markersWrap, addMarker);
-
-    const readMarkers = () => [...markersWrap.querySelectorAll(".se-marker")].map((row) => {
-      const action = row.querySelector(".se-marker-action").value === "next" ? "next" : "seek";
-      return {
-        label: row.querySelector(".se-marker-label").value,
-        showAt: parseTime(row.querySelector(".se-marker-show").value),
-        action,
-        seekTo: action === "seek" ? parseTime(row.querySelector(".se-marker-seek").value) : null
-      };
-    }).filter((marker) => marker.showAt != null);
+    const skip = buildSkipSection(currentSkip);
+    const skipBox = skip.node;
 
     const status = document.createElement("p");
     status.className = "se-status";
@@ -253,19 +348,15 @@
     save.textContent = "Сохранить";
     save.addEventListener("click", async () => {
       const seasons = readModel(list);
-      const skip = {
-        openingStart: parseTime(openStartInput.value),
-        openingEnd: parseTime(openEndInput.value),
-        nextStart: parseTime(nextStartInput.value),
-        markers: readMarkers()
-      };
+      const skipData = skip.read();
+      const episodeSkips = (state.structures[item.id] && state.structures[item.id].episodeSkips) || {};
       status.textContent = "Сохраняю...";
       try {
         const data = await api(`/api/admin/structure/${item.id}`, {
           method: "PUT",
-          body: JSON.stringify({ seasons, skip })
+          body: JSON.stringify({ seasons, skip: skipData, episodeSkips })
         });
-        state.structures[item.id] = data.structure || { seasons, skip };
+        state.structures[item.id] = data.structure || { seasons, skip: skipData, episodeSkips };
         overlay.remove();
         renderSeasons(item);
       } catch (error) {

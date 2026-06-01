@@ -116,6 +116,7 @@ function stopPlayback() {
     try { video.load(); } catch {}
   }
   document.querySelector(".dango-controls")?.classList.add("hidden");
+  document.querySelector(".dango-center-play")?.classList.add("hidden");
   document.querySelector("#skipIntroButton")?.classList.add("hidden");
   document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
   document.querySelector("#skipMarkers")?.replaceChildren();
@@ -529,7 +530,9 @@ function updateAdminUpload() {
   const editBtn = $("#editPlayerButtons");
   if (editBtn) {
     editBtn.classList.toggle("hidden", !isAdmin());
-    editBtn.onclick = () => window.openStructureEditor?.(state.title);
+    editBtn.onclick = () => {
+      if (state.episode) window.openPlayerButtonsEditor?.(state.title, state.episode.season, state.episode.episode);
+    };
   }
   if (isAdmin() && state.episode) prefillSibnet();
 }

@@ -916,29 +916,47 @@ function sanitizeStructure(body) {
     return { title, episodes, arcs };
   });
 
-  const rawSkip = body?.skip || {};
-  const seconds = (value) => {
-    if (value === null || value === undefined || value === "") return null;
-    const n = Math.floor(Number(value));
-    return Number.isFinite(n) && n >= 0 ? Math.min(n, 100000) : null;
-  };
-  const rawMarkers = Array.isArray(rawSkip.markers) ? rawSkip.markers : [];
+  const skip = sanitizeSkip(body?.skip);
+
+  const rawEpisodeSkips = body?.episodeSkips && typeof body.episodeSkips === "object" ? body.episodeSkips : {};
+  const episodeSkips = {};
+  for (const [key, value] of Object.entries(rawEpisodeSkips).slice(0, 5000)) {
+    if (!/^s\d+e\d+$/.test(key)) continue;
+    const epSkip = sanitizeSkip(value);
+    if (!isEmptySkip(epSkip)) episodeSkips[key] = epSkip;
+  }
+
+  return { seasons, skip, episodeSkips };
+}
+
+function toSeconds(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) && n >= 0 ? Math.min(n, 100000) : null;
+}
+
+function sanitizeSkip(rawSkip) {
+  const skip = rawSkip || {};
+  const rawMarkers = Array.isArray(skip.markers) ? skip.markers : [];
   const markers = rawMarkers.slice(0, 20).map((marker) => ({
     label: String(marker?.label ?? "").trim().slice(0, 40) || "Пропустить",
-    showAt: seconds(marker?.showAt),
-    hideAfter: seconds(marker?.hideAfter),
+    showAt: toSeconds(marker?.showAt),
+    hideAfter: toSeconds(marker?.hideAfter),
     action: marker?.action === "next" ? "next" : "seek",
-    seekTo: seconds(marker?.seekTo)
+    seekTo: toSeconds(marker?.seekTo)
   })).filter((marker) => marker.showAt != null);
 
-  const skip = {
-    openingStart: seconds(rawSkip.openingStart),
-    openingEnd: seconds(rawSkip.openingEnd),
-    nextStart: seconds(rawSkip.nextStart),
+  return {
+    openingStart: toSeconds(skip.openingStart),
+    openingEnd: toSeconds(skip.openingEnd),
+    nextStart: toSeconds(skip.nextStart),
     markers
   };
+}
 
-  return { seasons, skip };
+function isEmptySkip(skip) {
+  return !skip || (skip.openingStart == null && skip.openingEnd == null
+    && skip.nextStart == null && (!skip.markers || skip.markers.length === 0));
 }
 
 app.get("/api/structure/:animeId", async (req, res) => {
@@ -972,6 +990,36 @@ app.delete("/api/admin/structure/:animeId", requireAuth, requireAdmin, async (re
   if (!hasDatabase) return res.status(500).json({ error: "database_required" });
   await query("delete from anime_structure where anime_id = $1", [Number(req.params.animeId)]);
   return res.json({ ok: true });
+});
+
+// Per-episode player buttons (skip timecodes + custom markers). Merged into the
+// title's structure under episodeSkips["s{season}e{episode}"] without touching
+// the season/arc layout.
+app.put("/api/admin/episode-skip/:animeId/:season/:episode", requireAuth, requireAdmin, async (req, res) => {
+  if (!hasDatabase) return res.status(500).json({ error: "database_required" });
+  const animeId = Number(req.params.animeId);
+  const season = Number(req.params.season);
+  const episode = Number(req.params.episode);
+  if (![animeId, season, episode].every(Number.isInteger)) return res.status(400).json({ error: "invalid_params" });
+
+  const existing = await query("select data from anime_structure where anime_id = $1", [animeId]);
+  const data = existing.rows[0]?.data || { seasons: [], skip: sanitizeSkip(null), episodeSkips: {} };
+  data.episodeSkips = data.episodeSkips && typeof data.episodeSkips === "object" ? data.episodeSkips : {};
+
+  const key = `s${season}e${episode}`;
+  const skip = sanitizeSkip(req.body?.skip);
+  if (isEmptySkip(skip)) delete data.episodeSkips[key];
+  else data.episodeSkips[key] = skip;
+
+  const result = await query(
+    `insert into anime_structure (anime_id, data)
+     values ($1, $2)
+     on conflict (anime_id)
+     do update set data = excluded.data, updated_at = now()
+     returning data`,
+    [animeId, JSON.stringify(data)]
+  );
+  return res.json({ structure: result.rows[0].data });
 });
 
 app.get(/.*/, (req, res) => {
