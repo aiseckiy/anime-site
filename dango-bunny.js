@@ -63,10 +63,14 @@
       <div class="dc-row">
         <div class="dc-left">
           <button class="dc-btn dc-play" data-role="play" type="button" aria-label="Воспроизвести">▶</button>
-          <button class="dc-btn dc-mute" data-role="mute" type="button" aria-label="Звук">${VOL_ON}</button>
+          <div class="dc-volume" data-role="volume">
+            <button class="dc-btn dc-mute" data-role="mute" type="button" aria-label="Звук">${VOL_ON}</button>
+            <input class="dc-vol-range" data-role="vol" type="range" min="0" max="1" step="0.01" value="1" aria-label="Громкость" />
+          </div>
           <span class="dc-time"><span data-role="cur">0:00</span> / <span data-role="dur">0:00</span></span>
         </div>
         <div class="dc-right">
+          <span class="dc-percent" data-role="percent">0%</span>
           <div class="dc-quality hidden" data-role="quality">
             <button class="dc-btn" data-role="gear" type="button" aria-label="Качество">⚙ <span data-role="qlabel">Авто</span></button>
             <div class="dc-quality-menu hidden" data-role="qmenu"></div>
@@ -79,7 +83,8 @@
     const pick = (role) => bar.querySelector(`[data-role="${role}"]`);
     const dc = {
       bar, timeline: pick("timeline"), progress: pick("progress"), buffered: pick("buffered"),
-      play: pick("play"), mute: pick("mute"), cur: pick("cur"), dur: pick("dur"),
+      play: pick("play"), mute: pick("mute"), vol: pick("vol"), percent: pick("percent"),
+      cur: pick("cur"), dur: pick("dur"),
       quality: pick("quality"), gear: pick("gear"), qlabel: pick("qlabel"), qmenu: pick("qmenu"), full: pick("full")
     };
     video._dc = dc;
@@ -98,9 +103,23 @@
     });
     video.addEventListener("pause", () => { dc.play.textContent = "▶"; bar.classList.add("dc-paused"); });
 
+    // Volume: the slider only unfurls while the cursor is over the speaker
+    // (CSS :hover) and tucks back away when the cursor leaves.
+    const syncVolumeIcon = () => {
+      const silent = video.muted || video.volume === 0;
+      dc.mute.innerHTML = silent ? VOL_OFF : VOL_ON;
+    };
     dc.mute.addEventListener("click", () => {
       video.muted = !video.muted;
-      dc.mute.innerHTML = video.muted ? VOL_OFF : VOL_ON;
+      if (!video.muted && video.volume === 0) video.volume = 1;
+    });
+    dc.vol.addEventListener("input", () => {
+      video.volume = Number(dc.vol.value);
+      video.muted = video.volume === 0;
+    });
+    video.addEventListener("volumechange", () => {
+      dc.vol.value = video.muted ? 0 : video.volume;
+      syncVolumeIcon();
     });
 
     video.addEventListener("loadedmetadata", () => { dc.dur.textContent = fmtTime(video.duration); });
@@ -108,6 +127,7 @@
       const pct = video.duration ? (video.currentTime / video.duration) * 100 : 0;
       dc.progress.style.width = `${pct}%`;
       dc.cur.textContent = fmtTime(video.currentTime);
+      dc.percent.textContent = `${Math.round(pct)}%`;
     });
     video.addEventListener("progress", () => {
       try {
@@ -137,6 +157,42 @@
 
     dc.gear.addEventListener("click", (event) => { event.stopPropagation(); dc.qmenu.classList.toggle("hidden"); });
     document.addEventListener("click", () => dc.qmenu.classList.add("hidden"));
+
+    // Auto-hide: after 5s without mouse movement the whole control bar slides
+    // down out of the way so it doesn't cover the picture. Any movement (or a
+    // pause) brings it straight back.
+    let idleTimer = null;
+    const hideControls = () => {
+      if (video.paused) return; // keep controls up while paused
+      shell.classList.add("dc-idle");
+      shell.classList.remove("dc-active");
+    };
+    const showControls = () => {
+      shell.classList.add("dc-active");
+      shell.classList.remove("dc-idle");
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(hideControls, 5000);
+    };
+    shell.addEventListener("mousemove", showControls);
+    shell.addEventListener("mouseleave", () => { clearTimeout(idleTimer); hideControls(); });
+    video.addEventListener("pause", showControls);
+    video.addEventListener("play", showControls);
+
+    // Arrow keys jump 5 seconds back/forward while the local player is on screen.
+    document.addEventListener("keydown", (event) => {
+      if (video.classList.contains("hidden")) return;
+      const playerView = document.querySelector("#playerView");
+      if (!playerView || !playerView.classList.contains("active")) return;
+      const tag = (document.activeElement && document.activeElement.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      if (!video.duration) return;
+      event.preventDefault();
+      video._previewPending = false; // an explicit seek cancels the preview reset
+      const delta = event.key === "ArrowLeft" ? -5 : 5;
+      video.currentTime = Math.min(video.duration, Math.max(0, video.currentTime + delta));
+      showControls();
+    });
 
     return dc;
   }
@@ -288,18 +344,6 @@
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "api_error");
     return data;
-  }
-
-  function savedProgress(item, season, episode) {
-    try {
-      if (typeof getSavedProgress === "function") return getSavedProgress(item.id, season, episode);
-    } catch {}
-
-    const list = JSON.parse(localStorage.getItem("dangoContinueList") || "[]");
-    const saved = Array.isArray(list)
-      ? list.find((entry) => entry.id === item.id && entry.season === season && entry.episode === episode)
-      : null;
-    return saved?.progress || 0;
   }
 
   // The two timed overlay buttons are driven by per-anime timecodes saved in
@@ -511,8 +555,7 @@
       stopTimePolling();
     }
 
-    const progress = savedProgress(item, season, episode);
-    meta.textContent = `${labelVariant(variant)} • продолжить с ${progress}% просмотра.`;
+    meta.textContent = "";
   }
 
   function renderVariants(variants, item, season, episode) {

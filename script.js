@@ -383,8 +383,7 @@ async function openPlayer(item, season, episode, push = true) {
   if (!(item.id in state.structures)) await loadStructure(item);
   routeTo("player", { id: item.id, season, episode }, push);
   $("#playerTitle").textContent = `${item.name} - ${season} сезон, ${episode} серия`;
-  $("#progressRange").value = getProgress(item.id, season, episode);
-  rememberContinue(item, season, episode, $("#progressRange").value);
+  rememberContinue(item, season, episode, getProgress(item.id, season, episode));
   renderEpisodeLocalSocial(item, season, episode);
   setupEpisodeNav(item, season, episode);
   await loadMedia(item, season, episode);

@@ -296,12 +296,24 @@
   padding: 8px 12px 10px;
   background: linear-gradient(transparent, rgba(0, 0, 0, .85));
   opacity: 0;
-  transition: opacity .25s ease;
+  transform: translateY(110%);
+  transition: opacity .25s ease, transform .25s ease;
 }
 
-.fake-player:hover .dango-controls,
+.fake-player.dc-active .dango-controls,
 .dango-controls.dc-paused {
   opacity: 1;
+  transform: translateY(0);
+}
+
+/* When the bar has slid away, hide the cursor too for an unobstructed view. */
+.fake-player.dc-idle .dango-controls {
+  opacity: 0;
+  transform: translateY(110%);
+}
+
+.fake-player.dc-idle {
+  cursor: none;
 }
 
 .dango-controls.hidden {
@@ -392,6 +404,38 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Volume: speaker button + a slider that only unfurls on hover. */
+.dc-volume {
+  display: flex;
+  align-items: center;
+}
+
+.dc-vol-range {
+  width: 0;
+  opacity: 0;
+  height: 4px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent, #ff4fa2);
+  cursor: pointer;
+  transition: width .2s ease, opacity .2s ease, margin .2s ease;
+}
+
+.dc-volume:hover .dc-vol-range,
+.dc-vol-range:focus {
+  width: 72px;
+  opacity: 1;
+  margin: 0 6px 0 2px;
+}
+
+/* Watch progress shown as a percentage where the quality control lives. */
+.dc-percent {
+  margin-right: 6px;
+  font-size: 13px;
+  opacity: .9;
+  font-variant-numeric: tabular-nums;
+}
+
 .dc-quality {
   position: relative;
 }
@@ -461,18 +505,18 @@
 }
 
 .fake-player:fullscreen .dc-timeline {
-  height: 9px;
+  height: 5px;
   margin-bottom: 14px;
 }
 
 .fake-player:fullscreen .dc-timeline:hover {
-  height: 13px;
+  height: 8px;
 }
 
 .fake-player:fullscreen .dc-thumb {
-  width: 16px;
-  height: 16px;
-  right: -8px;
+  width: 13px;
+  height: 13px;
+  right: -6px;
 }
 
 .fake-player:fullscreen .dc-btn {
@@ -494,7 +538,8 @@
   height: 26px;
 }
 
-.fake-player:fullscreen .dc-time {
+.fake-player:fullscreen .dc-time,
+.fake-player:fullscreen .dc-percent {
   font-size: 16px;
 }
 
