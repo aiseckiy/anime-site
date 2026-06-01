@@ -286,6 +286,30 @@
   opacity: .7;
 }
 
+/* Sibnet admin embed form */
+#sibnetInput {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text, #fff);
+  background: rgba(0, 0, 0, .25);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.sibnet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#sibnetDeleteButton {
+  background: transparent !important;
+  color: var(--muted, #b9a7b2) !important;
+}
+
 /* Ads */
 .ad-surface {
   position: relative;

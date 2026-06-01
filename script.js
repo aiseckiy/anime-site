@@ -522,7 +522,20 @@ function isAdmin() {
 }
 
 function updateAdminUpload() {
-  $("#mediaUploadForm")?.classList.toggle("hidden", !isAdmin());
+  $("#sibnetForm")?.classList.toggle("hidden", !isAdmin());
+  if (isAdmin() && state.episode) prefillSibnet();
+}
+
+async function prefillSibnet() {
+  const input = $("#sibnetInput");
+  if (!input || !state.episode) return;
+  try {
+    const data = await api(`/api/media/${state.episode.id}/${state.episode.season}/${state.episode.episode}`);
+    const sibnet = (data.variants || []).find((variant) => variant.provider === "sibnet");
+    input.value = sibnet?.embed_url || "";
+  } catch {
+    input.value = "";
+  }
 }
 
 function handleImageUpload(input, target, type) {
@@ -634,23 +647,42 @@ function initEvents() {
   document.querySelectorAll("[data-close-character]").forEach((node) => node.addEventListener("click", () => $("#characterModal").classList.remove("open")));
   $("#bannerInput")?.addEventListener("change", (event) => handleImageUpload(event.target, $("#profileBanner"), "banner"));
   $("#avatarInput")?.addEventListener("change", (event) => handleImageUpload(event.target, $(".avatar-button"), "avatar"));
-  $("#mediaUploadForm")?.addEventListener("submit", async (event) => {
+  $("#sibnetForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const file = $("#mediaInput").files?.[0];
-    if (!file || !state.episode) return;
-    const form = new FormData();
-    form.append("media", file);
-    form.append("animeId", state.title.id);
-    form.append("animeName", state.title.name);
-    form.append("season", state.episode.season);
-    form.append("episode", state.episode.episode);
-    $("#mediaUploadStatus").textContent = "Загружаю...";
+    if (!state.episode) return;
+    const embed = $("#sibnetInput").value.trim();
+    if (!embed) {
+      $("#sibnetStatus").textContent = "Вставьте код Sibnet, ссылку или videoid.";
+      return;
+    }
+    $("#sibnetStatus").textContent = "Сохраняю...";
     try {
-      await api("/api/admin/media", { method: "POST", body: form });
-      $("#mediaUploadStatus").textContent = "Файл загружен.";
+      await api("/api/admin/sibnet", {
+        method: "POST",
+        body: JSON.stringify({
+          animeId: state.title.id,
+          animeName: state.title.name,
+          season: state.episode.season,
+          episode: state.episode.episode,
+          embed
+        })
+      });
+      $("#sibnetStatus").textContent = "Плеер сохранён для этой серии.";
       await loadMedia(state.title, state.episode.season, state.episode.episode);
     } catch (error) {
-      $("#mediaUploadStatus").textContent = `Ошибка: ${error.message}`;
+      $("#sibnetStatus").textContent = `Ошибка: ${error.message}`;
+    }
+  });
+  $("#sibnetDeleteButton")?.addEventListener("click", async () => {
+    if (!state.episode) return;
+    $("#sibnetStatus").textContent = "Удаляю...";
+    try {
+      await api(`/api/admin/sibnet/${state.title.id}/${state.episode.season}/${state.episode.episode}`, { method: "DELETE" });
+      $("#sibnetInput").value = "";
+      $("#sibnetStatus").textContent = "Плеер удалён.";
+      await loadMedia(state.title, state.episode.season, state.episode.episode);
+    } catch (error) {
+      $("#sibnetStatus").textContent = `Ошибка: ${error.message}`;
     }
   });
   $("#reloadDemonApi")?.addEventListener("click", loadCharacters);
