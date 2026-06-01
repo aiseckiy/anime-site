@@ -88,10 +88,10 @@
     dc.play.addEventListener("click", togglePlay);
     video.addEventListener("click", togglePlay);
     video.addEventListener("play", () => {
-      // First play leaves the random preview frame and starts from the top.
+      // First play leaves the preview frame and starts the episode from the top.
       if (video._previewPending) {
-        video._previewPending = false;
         try { if (video.currentTime > 1) video.currentTime = 0; } catch {}
+        exitPreview(video);
       }
       dc.play.textContent = "⏸";
       bar.classList.remove("dc-paused");
@@ -151,6 +151,7 @@
       video._dc.qmenu.classList.add("hidden");
       video._dc.quality.classList.add("hidden");
     }
+    if (video && video._centerPlay) video._centerPlay.classList.add("hidden");
   }
 
   // Populate the in-video quality gear from the available HLS levels.
@@ -196,15 +197,44 @@
     return Math.round(mbps * 1_000_000);
   }
 
-  // Show a random moment of the episode as the still preview (not the very
-  // start). The frame stays until the user presses play, which jumps back to 0.
-  function setRandomPreview(video) {
+  // Big centered play button shown over the still preview frame.
+  function ensureCenterPlay(video) {
+    if (video._centerPlay) return video._centerPlay;
+    const { shell } = playerElements();
+    if (!shell) return null;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "dango-center-play hidden";
+    button.setAttribute("aria-label", "Смотреть");
+    button.innerHTML = `<svg viewBox="0 0 24 24" width="42" height="42" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+    button.addEventListener("click", (event) => { event.stopPropagation(); video.play(); });
+    shell.appendChild(button);
+    video._centerPlay = button;
+    return button;
+  }
+
+  // Preview state: a still frame (no timeline, no controls) that looks like a
+  // loaded thumbnail, with a big play button. Press play -> start from 0.
+  function enterPreview(video) {
     video._previewPending = true;
+    video._dc?.bar.classList.add("hidden");
+    ensureCenterPlay(video)?.classList.remove("hidden");
+  }
+
+  function exitPreview(video) {
+    video._previewPending = false;
+    video._centerPlay?.classList.add("hidden");
+    video._dc?.bar.classList.remove("hidden");
+  }
+
+  // Use the exact middle of the episode as the still preview frame.
+  function setMiddlePreview(video) {
+    enterPreview(video);
     const jump = () => {
       if (!video._previewPending) return;
       const d = video.duration;
-      if (!d || !isFinite(d) || d < 10) return;
-      try { video.currentTime = d * (0.15 + Math.random() * 0.6); } catch {}
+      if (!d || !isFinite(d) || d < 4) return;
+      try { video.currentTime = d * 0.5; } catch {}
     };
     if (video.duration && isFinite(video.duration)) jump();
     else video.addEventListener("loadedmetadata", jump, { once: true });
@@ -239,7 +269,7 @@
     } else {
       video.src = url;
     }
-    setRandomPreview(video);
+    setMiddlePreview(video);
   }
 
   async function bunnyRequest(path, options = {}) {
@@ -453,7 +483,10 @@
     ensureOverlayButtons();
     document.querySelector("#skipIntroButton")?.classList.add("hidden");
     document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
-    activeSkip = (typeof state !== "undefined" && state.structures && state.structures[item.id] && state.structures[item.id].skip) || null;
+    const structure = (typeof state !== "undefined" && state.structures && state.structures[item.id]) || null;
+    const epKey = `s${season}e${episode}`;
+    activeSkip = (structure && structure.episodeSkips && structure.episodeSkips[epKey])
+      || (structure && structure.skip) || null;
     buildMarkerButtons(activeSkip);
 
     if (isBunnyEmbed && iframe) {

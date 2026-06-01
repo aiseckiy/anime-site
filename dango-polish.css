@@ -498,6 +498,49 @@
   font-size: 16px;
 }
 
+/* Big centered play button over the still preview */
+.dango-center-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 5;
+  width: 84px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .55);
+  color: #fff;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  transition: background .2s ease, transform .15s ease;
+}
+
+.dango-center-play:hover {
+  background: var(--accent, #ff4fa2);
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.dango-center-play svg {
+  margin-left: 4px;
+}
+
+.dango-center-play.hidden {
+  display: none;
+}
+
+.fake-player:fullscreen .dango-center-play {
+  width: 120px;
+  height: 120px;
+}
+
+.fake-player:fullscreen .dango-center-play svg {
+  width: 60px;
+  height: 60px;
+}
+
 /* Custom (admin-defined) skip buttons share the skip-intro look */
 .skip-marker-button {
   position: absolute;
