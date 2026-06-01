@@ -286,8 +286,168 @@
   opacity: .7;
 }
 
-.quality-label.hidden {
+/* Custom video player controls */
+.dango-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  padding: 8px 12px 10px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, .85));
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+.fake-player:hover .dango-controls,
+.dango-controls.dc-paused {
+  opacity: 1;
+}
+
+.dango-controls.hidden {
   display: none;
+}
+
+.dc-timeline {
+  position: relative;
+  height: 6px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, .25);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: height .1s ease;
+}
+
+.dc-timeline:hover {
+  height: 8px;
+}
+
+.dc-buffered {
+  position: absolute;
+  inset: 0;
+  width: 0;
+  background: rgba(255, 255, 255, .35);
+  border-radius: 3px;
+}
+
+.dc-progress {
+  position: relative;
+  height: 100%;
+  width: 0;
+  background: var(--accent, #ff4fa2);
+  border-radius: 3px;
+}
+
+.dc-thumb {
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity .15s ease;
+}
+
+.dc-timeline:hover .dc-thumb {
+  opacity: 1;
+}
+
+.dc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+}
+
+.dc-left,
+.dc-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dc-btn {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+
+.dc-btn:hover {
+  color: var(--accent, #ff4fa2);
+}
+
+.dc-time {
+  margin-left: 4px;
+  font-size: 13px;
+  opacity: .9;
+  font-variant-numeric: tabular-nums;
+}
+
+.dc-quality {
+  position: relative;
+}
+
+.dc-quality.hidden {
+  display: none;
+}
+
+.dc-quality-menu {
+  position: absolute;
+  right: 0;
+  bottom: 40px;
+  min-width: 124px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(15, 10, 14, .96);
+  border: 1px solid var(--line, #3a2c34);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+}
+
+.dc-quality-menu.hidden {
+  display: none;
+}
+
+.dc-q-item {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #fff;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dc-q-item:hover {
+  background: rgba(255, 255, 255, .1);
+}
+
+.dc-q-item.active {
+  color: var(--accent, #ff4fa2);
+  font-weight: 700;
+}
+
+.fake-player:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+
+.fake-player:fullscreen .episode-video {
+  object-fit: contain;
 }
 
 /* Sibnet admin embed form */

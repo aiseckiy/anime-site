@@ -34,11 +34,98 @@
     return parts.length ? parts.join(" • ") : "Видео";
   }
 
-  function qualityElements() {
-    return {
-      label: document.querySelector("#qualityLabel"),
-      select: document.querySelector("#qualitySelect")
+  function fmtTime(value) {
+    const total = Math.max(0, Math.floor(value || 0));
+    const minutes = Math.floor(total / 60);
+    const seconds = String(total % 60).padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  }
+
+  // Build our own control bar (timeline, play/mute, time, in-video quality
+  // gear, fullscreen) once per <video>. Native controls are off so this is the
+  // only UI for the HLS/mp4 path.
+  function ensureCustomControls(video) {
+    if (video._dc) return video._dc;
+    const { shell } = playerElements();
+    if (!shell) return null;
+
+    const bar = document.createElement("div");
+    bar.className = "dango-controls hidden";
+    bar.innerHTML = `
+      <div class="dc-timeline" data-role="timeline">
+        <div class="dc-buffered" data-role="buffered"></div>
+        <div class="dc-progress" data-role="progress"><span class="dc-thumb"></span></div>
+      </div>
+      <div class="dc-row">
+        <div class="dc-left">
+          <button class="dc-btn" data-role="play" type="button" aria-label="Воспроизвести">▶</button>
+          <button class="dc-btn" data-role="mute" type="button" aria-label="Звук">🔊</button>
+          <span class="dc-time"><span data-role="cur">0:00</span> / <span data-role="dur">0:00</span></span>
+        </div>
+        <div class="dc-right">
+          <div class="dc-quality hidden" data-role="quality">
+            <button class="dc-btn" data-role="gear" type="button" aria-label="Качество">⚙ <span data-role="qlabel">Авто</span></button>
+            <div class="dc-quality-menu hidden" data-role="qmenu"></div>
+          </div>
+          <button class="dc-btn" data-role="full" type="button" aria-label="Полный экран">⛶</button>
+        </div>
+      </div>`;
+    shell.appendChild(bar);
+
+    const pick = (role) => bar.querySelector(`[data-role="${role}"]`);
+    const dc = {
+      bar, timeline: pick("timeline"), progress: pick("progress"), buffered: pick("buffered"),
+      play: pick("play"), mute: pick("mute"), cur: pick("cur"), dur: pick("dur"),
+      quality: pick("quality"), gear: pick("gear"), qlabel: pick("qlabel"), qmenu: pick("qmenu"), full: pick("full")
     };
+    video._dc = dc;
+
+    const togglePlay = () => { if (video.paused) video.play(); else video.pause(); };
+    dc.play.addEventListener("click", togglePlay);
+    video.addEventListener("click", togglePlay);
+    video.addEventListener("play", () => { dc.play.textContent = "⏸"; bar.classList.remove("dc-paused"); });
+    video.addEventListener("pause", () => { dc.play.textContent = "▶"; bar.classList.add("dc-paused"); });
+
+    dc.mute.addEventListener("click", () => {
+      video.muted = !video.muted;
+      dc.mute.textContent = video.muted ? "🔇" : "🔊";
+    });
+
+    video.addEventListener("loadedmetadata", () => { dc.dur.textContent = fmtTime(video.duration); });
+    video.addEventListener("timeupdate", () => {
+      const pct = video.duration ? (video.currentTime / video.duration) * 100 : 0;
+      dc.progress.style.width = `${pct}%`;
+      dc.cur.textContent = fmtTime(video.currentTime);
+    });
+    video.addEventListener("progress", () => {
+      try {
+        if (video.buffered.length && video.duration) {
+          const end = video.buffered.end(video.buffered.length - 1);
+          dc.buffered.style.width = `${(end / video.duration) * 100}%`;
+        }
+      } catch {}
+    });
+
+    const seekFromEvent = (event) => {
+      const rect = dc.timeline.getBoundingClientRect();
+      const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      if (video.duration) video.currentTime = ratio * video.duration;
+    };
+    let scrubbing = false;
+    dc.timeline.addEventListener("mousedown", (event) => { scrubbing = true; seekFromEvent(event); });
+    document.addEventListener("mousemove", (event) => { if (scrubbing) seekFromEvent(event); });
+    document.addEventListener("mouseup", () => { scrubbing = false; });
+
+    dc.full.addEventListener("click", () => {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else shell.requestFullscreen?.().catch(() => {});
+    });
+
+    dc.gear.addEventListener("click", (event) => { event.stopPropagation(); dc.qmenu.classList.toggle("hidden"); });
+    document.addEventListener("click", () => dc.qmenu.classList.add("hidden"));
+
+    return dc;
   }
 
   function clearHls(video) {
@@ -46,35 +133,65 @@
       try { video._hls.destroy(); } catch {}
       video._hls = null;
     }
-    qualityElements().label?.classList.add("hidden");
+    if (video && video._dc) {
+      video._dc.bar.classList.add("hidden");
+      video._dc.qmenu.classList.add("hidden");
+      video._dc.quality.classList.add("hidden");
+    }
   }
 
-  function buildQualityMenu(hls) {
-    const { label, select } = qualityElements();
-    if (!label || !select) return;
+  // Populate the in-video quality gear from the available HLS levels.
+  function buildQualityMenu(hls, video) {
+    const dc = video._dc;
+    if (!dc) return;
     const levels = hls.levels || [];
-    if (levels.length <= 1) { label.classList.add("hidden"); return; }
-    select.innerHTML = `<option value="-1">Авто</option>` + levels.map((level, index) => {
+    dc.quality.classList.toggle("hidden", levels.length <= 1);
+    if (levels.length <= 1) return;
+
+    const item = (text, level, active) =>
+      `<button class="dc-q-item${active ? " active" : ""}" type="button" data-level="${level}">${text}</button>`;
+    let html = item("Авто", -1, hls.autoLevelEnabled);
+    levels.forEach((level, index) => {
       const name = level.height ? `${level.height}p` : `${Math.round((level.bitrate || 0) / 1000)}k`;
-      return `<option value="${index}">${name}</option>`;
-    }).join("");
-    select.value = "-1";
-    select.onchange = () => { hls.currentLevel = Number(select.value); };
-    label.classList.remove("hidden");
+      html += item(name, index, !hls.autoLevelEnabled && hls.currentLevel === index);
+    });
+    dc.qmenu.innerHTML = html;
+    dc.qlabel.textContent = "Авто";
+
+    dc.qmenu.querySelectorAll(".dc-q-item").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        hls.currentLevel = Number(button.dataset.level);
+        dc.qlabel.textContent = button.textContent.trim();
+        dc.qmenu.querySelectorAll(".dc-q-item").forEach((node) => node.classList.remove("active"));
+        button.classList.add("active");
+        dc.qmenu.classList.add("hidden");
+      });
+    });
   }
 
   // Play a direct video URL in our own <video>: .m3u8 via hls.js (adaptive +
-  // quality menu), other formats natively.
+  // in-video quality menu), other formats natively. Custom controls always on.
   function attachHls(video, url) {
     clearHls(video);
     video.preload = "metadata";
+    video.controls = false;
+    const dc = ensureCustomControls(video);
+    dc?.bar.classList.remove("hidden");
+
     const isM3u8 = /\.m3u8(\?|$)/i.test(url);
     if (isM3u8 && window.Hls && window.Hls.isSupported()) {
       const hls = new window.Hls();
       video._hls = hls;
       hls.loadSource(url);
       hls.attachMedia(video);
-      hls.on(window.Hls.Events.MANIFEST_PARSED, () => buildQualityMenu(hls));
+      hls.on(window.Hls.Events.MANIFEST_PARSED, () => buildQualityMenu(hls, video));
+      hls.on(window.Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+        if (dc && hls.autoLevelEnabled) {
+          const level = hls.levels[data.level];
+          dc.qlabel.textContent = level && level.height ? `Авто (${level.height}p)` : "Авто";
+        }
+      });
     } else {
       video.src = url;
     }
