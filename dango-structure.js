@@ -183,6 +183,64 @@
       field("«Следующая серия» — показать с ", nextStartInput)
     );
 
+    // Custom (extra) buttons: title + show-at + action (seek/next-episode).
+    const markersWrap = document.createElement("div");
+    markersWrap.className = "se-markers";
+    const buildMarkerRow = (marker = {}) => {
+      const row = document.createElement("div");
+      row.className = "se-marker";
+
+      const label = document.createElement("input");
+      label.type = "text";
+      label.className = "se-marker-label";
+      label.placeholder = "Текст кнопки (напр. Пропустить заставку)";
+      label.value = marker.label || "";
+
+      const showAt = timeInput(marker.showAt, "показать с, напр. 0:30");
+      showAt.className = "se-marker-show";
+
+      const action = document.createElement("select");
+      action.className = "se-marker-action";
+      action.innerHTML = `<option value="seek">Перемотать до…</option><option value="next">Следующая серия</option>`;
+      action.value = marker.action === "next" ? "next" : "seek";
+
+      const seekTo = timeInput(marker.seekTo, "до, напр. 1:30");
+      seekTo.className = "se-marker-seek";
+      const syncSeek = () => { seekTo.style.display = action.value === "next" ? "none" : ""; };
+      action.addEventListener("change", syncSeek);
+      syncSeek();
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "se-remove-arc";
+      remove.textContent = "×";
+      remove.title = "Удалить кнопку";
+      remove.addEventListener("click", () => row.remove());
+
+      row.append(label, field("⏱ ", showAt), action, seekTo, remove);
+      return row;
+    };
+    (Array.isArray(currentSkip.markers) ? currentSkip.markers : []).forEach((marker) => markersWrap.append(buildMarkerRow(marker)));
+
+    const markersTitle = document.createElement("h3");
+    markersTitle.textContent = "Доп. кнопки (можно добавлять свои)";
+    const addMarker = document.createElement("button");
+    addMarker.type = "button";
+    addMarker.className = "se-add-arc";
+    addMarker.textContent = "+ Добавить кнопку";
+    addMarker.addEventListener("click", () => markersWrap.append(buildMarkerRow()));
+    skipBox.append(markersTitle, markersWrap, addMarker);
+
+    const readMarkers = () => [...markersWrap.querySelectorAll(".se-marker")].map((row) => {
+      const action = row.querySelector(".se-marker-action").value === "next" ? "next" : "seek";
+      return {
+        label: row.querySelector(".se-marker-label").value,
+        showAt: parseTime(row.querySelector(".se-marker-show").value),
+        action,
+        seekTo: action === "seek" ? parseTime(row.querySelector(".se-marker-seek").value) : null
+      };
+    }).filter((marker) => marker.showAt != null);
+
     const status = document.createElement("p");
     status.className = "se-status";
 
@@ -198,7 +256,8 @@
       const skip = {
         openingStart: parseTime(openStartInput.value),
         openingEnd: parseTime(openEndInput.value),
-        nextStart: parseTime(nextStartInput.value)
+        nextStart: parseTime(nextStartInput.value),
+        markers: readMarkers()
       };
       status.textContent = "Сохраняю...";
       try {

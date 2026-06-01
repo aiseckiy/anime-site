@@ -1,6 +1,10 @@
 (() => {
   const apiBase = window.location.protocol === "file:" ? "http://localhost:3000" : "";
 
+  // Minimalist monochrome volume icons (inherit currentColor).
+  const VOL_ON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>`;
+  const VOL_OFF = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/><path d="M16 9l5 6M21 9l-5 6"/></svg>`;
+
   function playerElements() {
     return {
       shell: document.querySelector(".fake-player"),
@@ -58,8 +62,8 @@
       </div>
       <div class="dc-row">
         <div class="dc-left">
-          <button class="dc-btn" data-role="play" type="button" aria-label="Воспроизвести">▶</button>
-          <button class="dc-btn" data-role="mute" type="button" aria-label="Звук">🔊</button>
+          <button class="dc-btn dc-play" data-role="play" type="button" aria-label="Воспроизвести">▶</button>
+          <button class="dc-btn dc-mute" data-role="mute" type="button" aria-label="Звук">${VOL_ON}</button>
           <span class="dc-time"><span data-role="cur">0:00</span> / <span data-role="dur">0:00</span></span>
         </div>
         <div class="dc-right">
@@ -83,12 +87,20 @@
     const togglePlay = () => { if (video.paused) video.play(); else video.pause(); };
     dc.play.addEventListener("click", togglePlay);
     video.addEventListener("click", togglePlay);
-    video.addEventListener("play", () => { dc.play.textContent = "⏸"; bar.classList.remove("dc-paused"); });
+    video.addEventListener("play", () => {
+      // First play leaves the random preview frame and starts from the top.
+      if (video._previewPending) {
+        video._previewPending = false;
+        try { if (video.currentTime > 1) video.currentTime = 0; } catch {}
+      }
+      dc.play.textContent = "⏸";
+      bar.classList.remove("dc-paused");
+    });
     video.addEventListener("pause", () => { dc.play.textContent = "▶"; bar.classList.add("dc-paused"); });
 
     dc.mute.addEventListener("click", () => {
       video.muted = !video.muted;
-      dc.mute.textContent = video.muted ? "🔇" : "🔊";
+      dc.mute.innerHTML = video.muted ? VOL_OFF : VOL_ON;
     });
 
     video.addEventListener("loadedmetadata", () => { dc.dur.textContent = fmtTime(video.duration); });
@@ -110,6 +122,7 @@
       const rect = dc.timeline.getBoundingClientRect();
       const clientX = event.touches ? event.touches[0].clientX : event.clientX;
       const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      video._previewPending = false; // deliberate seek cancels the preview reset
       if (video.duration) video.currentTime = ratio * video.duration;
     };
     let scrubbing = false;
@@ -170,6 +183,33 @@
     });
   }
 
+  // Estimate the viewer's bandwidth so hls.js picks a sensible starting
+  // quality. Fast connections start at 1080p; slow ones start lower. After
+  // that hls.js ABR keeps adapting — it drops quality if segments stall
+  // (YouTube-style) and climbs back up when bandwidth allows.
+  function bandwidthEstimateBps() {
+    const conn = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+    const downlink = conn && Number(conn.downlink) ? Number(conn.downlink) : 0;     // Mbps
+    const is4g = !conn || conn.effectiveType === "4g" || conn.effectiveType === undefined;
+    // Lean towards HD when we have no signal or a good one; be cautious on slow links.
+    const mbps = downlink ? Math.max(downlink, is4g ? 8 : 1.5) : 8;
+    return Math.round(mbps * 1_000_000);
+  }
+
+  // Show a random moment of the episode as the still preview (not the very
+  // start). The frame stays until the user presses play, which jumps back to 0.
+  function setRandomPreview(video) {
+    video._previewPending = true;
+    const jump = () => {
+      if (!video._previewPending) return;
+      const d = video.duration;
+      if (!d || !isFinite(d) || d < 10) return;
+      try { video.currentTime = d * (0.15 + Math.random() * 0.6); } catch {}
+    };
+    if (video.duration && isFinite(video.duration)) jump();
+    else video.addEventListener("loadedmetadata", jump, { once: true });
+  }
+
   // Play a direct video URL in our own <video>: .m3u8 via hls.js (adaptive +
   // in-video quality menu), other formats natively. Custom controls always on.
   function attachHls(video, url) {
@@ -181,7 +221,11 @@
 
     const isM3u8 = /\.m3u8(\?|$)/i.test(url);
     if (isM3u8 && window.Hls && window.Hls.isSupported()) {
-      const hls = new window.Hls();
+      const hls = new window.Hls({
+        enableWorker: true,
+        abrEwmaDefaultEstimate: bandwidthEstimateBps(),
+        startLevel: -1
+      });
       video._hls = hls;
       hls.loadSource(url);
       hls.attachMedia(video);
@@ -195,6 +239,7 @@
     } else {
       video.src = url;
     }
+    setRandomPreview(video);
   }
 
   async function bunnyRequest(path, options = {}) {
@@ -272,14 +317,21 @@
     const nextBtn = document.querySelector("#nextEpiOverlay");
     const openConfigured = skip.openingEnd != null;
     const nextConfigured = skip.nextStart != null;
+    const markerBtns = document.querySelectorAll("#skipMarkers .skip-marker-button");
     if (forceShow) {
       showButton(openBtn, openConfigured);
       showButton(nextBtn, nextConfigured);
+      markerBtns.forEach((button) => showButton(button, true));
       return;
     }
     const os = skip.openingStart;
     showButton(openBtn, openConfigured && os != null && t >= os && t < os + SKIP_WINDOW);
     showButton(nextBtn, nextConfigured && t >= skip.nextStart && t < skip.nextStart + SKIP_WINDOW);
+    markerBtns.forEach((button) => {
+      const at = Number(button.dataset.showAt);
+      const win = Number(button.dataset.window) || SKIP_WINDOW;
+      showButton(button, t >= at && t < at + win);
+    });
   }
 
   function stopTimePolling() {
@@ -336,6 +388,35 @@
       button.onclick = () => document.querySelector("#nextEpisode")?.click();
       shell.appendChild(button);
     }
+    if (!document.querySelector("#skipMarkers")) {
+      const wrap = document.createElement("div");
+      wrap.id = "skipMarkers";
+      shell.appendChild(wrap);
+    }
+  }
+
+  // Admin-defined custom buttons. Each marker appears in a timed window and
+  // either seeks (skip recap/ending) or jumps to the next episode.
+  function buildMarkerButtons(skip) {
+    const wrap = document.querySelector("#skipMarkers");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    const markers = skip && Array.isArray(skip.markers) ? skip.markers : [];
+    markers.forEach((marker, index) => {
+      if (marker.showAt == null) return;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "skip-marker-button hidden";
+      button.style.bottom = `${154 + index * 46}px`;
+      button.textContent = marker.label || "Пропустить";
+      button.dataset.showAt = marker.showAt;
+      button.dataset.window = marker.hideAfter != null ? marker.hideAfter : SKIP_WINDOW;
+      button.onclick = () => {
+        if (marker.action === "next") document.querySelector("#nextEpisode")?.click();
+        else if (marker.seekTo != null) seekTo(marker.seekTo);
+      };
+      wrap.appendChild(button);
+    });
   }
 
   function applyVariant(variant, item, season, episode) {
@@ -373,6 +454,7 @@
     document.querySelector("#skipIntroButton")?.classList.add("hidden");
     document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
     activeSkip = (typeof state !== "undefined" && state.structures && state.structures[item.id] && state.structures[item.id].skip) || null;
+    buildMarkerButtons(activeSkip);
 
     if (isBunnyEmbed && iframe) {
       activeMode = "bunny";
@@ -428,6 +510,7 @@
     stopTimePolling();
     document.querySelector("#skipIntroButton")?.classList.add("hidden");
     document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
+    document.querySelector("#skipMarkers")?.replaceChildren();
     play?.classList.remove("hidden");
 
     try {

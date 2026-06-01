@@ -922,10 +922,20 @@ function sanitizeStructure(body) {
     const n = Math.floor(Number(value));
     return Number.isFinite(n) && n >= 0 ? Math.min(n, 100000) : null;
   };
+  const rawMarkers = Array.isArray(rawSkip.markers) ? rawSkip.markers : [];
+  const markers = rawMarkers.slice(0, 20).map((marker) => ({
+    label: String(marker?.label ?? "").trim().slice(0, 40) || "Пропустить",
+    showAt: seconds(marker?.showAt),
+    hideAfter: seconds(marker?.hideAfter),
+    action: marker?.action === "next" ? "next" : "seek",
+    seekTo: seconds(marker?.seekTo)
+  })).filter((marker) => marker.showAt != null);
+
   const skip = {
     openingStart: seconds(rawSkip.openingStart),
     openingEnd: seconds(rawSkip.openingEnd),
-    nextStart: seconds(rawSkip.nextStart)
+    nextStart: seconds(rawSkip.nextStart),
+    markers
   };
 
   return { seasons, skip };

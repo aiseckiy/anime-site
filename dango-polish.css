@@ -450,6 +450,95 @@
   object-fit: contain;
 }
 
+/* Slightly bigger fullscreen toggle everywhere */
+.dc-btn[data-role="full"] {
+  font-size: 17px;
+}
+
+/* In fullscreen: chunkier timeline + larger play/pause and fullscreen icons */
+.fake-player:fullscreen .dango-controls {
+  padding: 14px 26px 20px;
+}
+
+.fake-player:fullscreen .dc-timeline {
+  height: 9px;
+  margin-bottom: 14px;
+}
+
+.fake-player:fullscreen .dc-timeline:hover {
+  height: 13px;
+}
+
+.fake-player:fullscreen .dc-thumb {
+  width: 16px;
+  height: 16px;
+  right: -8px;
+}
+
+.fake-player:fullscreen .dc-btn {
+  font-size: 22px;
+  padding: 6px 12px;
+}
+
+.fake-player:fullscreen .dc-play {
+  font-size: 32px;
+  padding: 6px 16px;
+}
+
+.fake-player:fullscreen .dc-btn[data-role="full"] {
+  font-size: 28px;
+}
+
+.fake-player:fullscreen .dc-mute svg {
+  width: 26px;
+  height: 26px;
+}
+
+.fake-player:fullscreen .dc-time {
+  font-size: 16px;
+}
+
+/* Custom (admin-defined) skip buttons share the skip-intro look */
+.skip-marker-button {
+  position: absolute;
+  right: 14px;
+  z-index: 3;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .65);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.skip-marker-button:hover {
+  background: var(--accent, #ff4fa2);
+}
+
+.skip-marker-button.hidden {
+  display: none;
+}
+
+/* Custom button editor rows */
+.se-marker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.se-marker-label {
+  flex: 1 1 200px;
+}
+
+.se-marker-show,
+.se-marker-seek {
+  width: 120px;
+}
+
 /* Sibnet admin embed form */
 #sibnetInput {
   width: 100%;
