@@ -110,10 +110,12 @@ function stopPlayback() {
   const video = document.querySelector("#episodeVideo");
   if (video) {
     try { video.pause(); } catch {}
+    if (video._hls) { try { video._hls.destroy(); } catch {} video._hls = null; }
     video.removeAttribute("src");
     video.classList.add("hidden");
     try { video.load(); } catch {}
   }
+  document.querySelector("#qualityLabel")?.classList.add("hidden");
   document.querySelector("#skipIntroButton")?.classList.add("hidden");
   document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
 }
@@ -531,8 +533,10 @@ async function prefillSibnet() {
   if (!input || !state.episode) return;
   try {
     const data = await api(`/api/media/${state.episode.id}/${state.episode.season}/${state.episode.episode}`);
-    const sibnet = (data.variants || []).find((variant) => variant.provider === "sibnet");
-    input.value = sibnet?.embed_url || "";
+    const saved = (data.variants || []).find((variant) => variant.provider === "sibnet" || variant.provider === "hls");
+    input.value = saved?.file_url || saved?.embed_url || "";
+    const kindSelect = $("#sourceKind");
+    if (kindSelect && saved) kindSelect.value = saved.provider === "hls" ? "hls" : "embed";
   } catch {
     input.value = "";
   }
@@ -664,7 +668,8 @@ function initEvents() {
           animeName: state.title.name,
           season: state.episode.season,
           episode: state.episode.episode,
-          embed
+          embed,
+          kind: $("#sourceKind")?.value || "hls"
         })
       });
       $("#sibnetStatus").textContent = "Плеер сохранён для этой серии.";

@@ -807,8 +807,11 @@ app.get("/api/media/:animeId/:season/:episode", async (req, res) => {
     ),
     query(
       `select anime_id, anime_name, season, episode, label as original_name,
-              embed_url, embed_url as file_url, 'iframe' as mime_type,
-              created_at, 'sibnet' as provider, label as dub, null::text as quality
+              case when kind = 'embed' then embed_url else null end as embed_url,
+              embed_url as file_url, 'iframe' as mime_type,
+              created_at,
+              case when kind = 'embed' then 'sibnet' else 'hls' end as provider,
+              label as dub, null::text as quality, kind
        from sibnet_media
        where anime_id = $1 and season = $2 and episode = $3
        order by created_at desc`,
@@ -869,23 +872,25 @@ function parseEmbedInput(input) {
 }
 
 app.post("/api/admin/sibnet", requireAuth, requireAdmin, async (req, res) => {
-  const { animeId, animeName, season, episode, embed, label } = req.body || {};
+  const { animeId, animeName, season, episode, embed, label, kind } = req.body || {};
   if (!animeId || !animeName || !season || !episode || !embed) {
     return res.status(400).json({ error: "sibnet_required" });
   }
   const embedUrl = parseEmbedInput(embed);
   if (!embedUrl) return res.status(400).json({ error: "embed_invalid" });
 
-  const variantLabel = String(label || "Sibnet").trim().slice(0, 60) || "Sibnet";
+  const sourceKind = kind === "hls" ? "hls" : "embed";
+  const variantLabel = String(label || (sourceKind === "hls" ? "Видео" : "Sibnet")).trim().slice(0, 60) || "Видео";
   const result = await query(
-    `insert into sibnet_media (anime_id, anime_name, season, episode, label, embed_url)
-     values ($1, $2, $3, $4, $5, $6)
+    `insert into sibnet_media (anime_id, anime_name, season, episode, label, embed_url, kind)
+     values ($1, $2, $3, $4, $5, $6, $7)
      on conflict (anime_id, season, episode, label)
      do update set embed_url = excluded.embed_url,
                    anime_name = excluded.anime_name,
+                   kind = excluded.kind,
                    updated_at = now()
-     returning anime_id, anime_name, season, episode, label, embed_url`,
-    [animeId, animeName, season, episode, variantLabel, embedUrl]
+     returning anime_id, anime_name, season, episode, label, embed_url, kind`,
+    [animeId, animeName, season, episode, variantLabel, embedUrl, sourceKind]
   );
   res.status(201).json({ media: result.rows[0] });
 });
