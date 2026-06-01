@@ -101,6 +101,22 @@ export async function initSchema() {
       updated_at timestamptz not null default now()
     );
 
+    create table if not exists sibnet_media (
+      id bigserial primary key,
+      anime_id integer not null,
+      anime_name text not null,
+      season integer not null,
+      episode integer not null,
+      label text not null default 'Sibnet',
+      embed_url text not null,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now(),
+      unique (anime_id, season, episode, label)
+    );
+
+    create index if not exists sibnet_media_episode_idx
+      on sibnet_media (anime_id, season, episode);
+
     update users
     set role = 'admin'
     where lower(email) in ('adilhan.bekentaev@mail.ru', 'adimirten@gmail.com');

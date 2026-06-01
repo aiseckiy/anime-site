@@ -184,13 +184,19 @@
     // autoplays — the user starts playback with the built-in play button.
     play?.classList.add("hidden");
 
+    const isBunnyEmbed = !!variant.embed_url && /mediadelivery\.net/i.test(variant.embed_url);
+
     if (variant.embed_url && iframe) {
       video.classList.add("hidden");
       video.removeAttribute("src");
-      const url = new URL(variant.embed_url);
-      url.searchParams.set("autoplay", "false");
-      url.searchParams.set("preview", "true");
-      iframe.src = url.toString();
+      let src = variant.embed_url;
+      if (isBunnyEmbed) {
+        const url = new URL(src);
+        url.searchParams.set("autoplay", "false");
+        url.searchParams.set("preview", "true");
+        src = url.toString();
+      }
+      iframe.src = src;
       iframe.classList.remove("hidden");
     } else if (variant.file_url) {
       iframe?.classList.add("hidden");
@@ -205,12 +211,12 @@
     document.querySelector("#nextEpiOverlay")?.classList.add("hidden");
     activeSkip = (typeof state !== "undefined" && state.structures && state.structures[item.id] && state.structures[item.id].skip) || null;
 
-    if (variant.embed_url && iframe) {
+    if (isBunnyEmbed && iframe) {
       activeMode = "bunny";
       activeVideoEl = null;
       activeBunnyPlayer = ensureBunnyPlayer(iframe);
       startTimePolling();
-    } else if (variant.file_url) {
+    } else if (!variant.embed_url && variant.file_url) {
       activeMode = "local";
       activeVideoEl = video;
       activeBunnyPlayer = null;
@@ -219,6 +225,12 @@
         video.addEventListener("timeupdate", () => handleTime(video.currentTime));
         video._skipBound = true;
       }
+    } else {
+      // External embed (Sibnet etc.) — no programmatic seek control.
+      activeMode = "external";
+      activeVideoEl = null;
+      activeBunnyPlayer = null;
+      stopTimePolling();
     }
 
     const progress = savedProgress(item, season, episode);

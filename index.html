@@ -257,13 +257,16 @@
             </label>
             <button class="episode-like" id="episodeLikeButton" type="button">♡ <span id="episodeLikeCount">0</span></button>
           </div>
-          <form class="admin-upload hidden" id="mediaUploadForm">
+          <form class="admin-upload hidden" id="sibnetForm">
             <label>
-              Загрузить видео/аудио для этой серии
-              <input id="mediaInput" type="file" accept="video/*,audio/*" />
+              Код плеера Sibnet для этой серии
+              <textarea id="sibnetInput" rows="3" placeholder="Вставьте сюда код &lt;iframe ... sibnet.ru ...&gt;, ссылку или videoid"></textarea>
             </label>
-            <button type="submit">Загрузить в плеер</button>
-            <p id="mediaUploadStatus"></p>
+            <div class="sibnet-actions">
+              <button type="submit">Сохранить плеер для этой серии</button>
+              <button type="button" id="sibnetDeleteButton">Удалить</button>
+            </div>
+            <p id="sibnetStatus"></p>
           </form>
         </section>
         <section class="surface ad-surface">

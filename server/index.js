@@ -794,7 +794,7 @@ app.post("/api/admin/bunny/sync", requireAuth, requireAdmin, async (_req, res) =
 
 app.get("/api/media/:animeId/:season/:episode", async (req, res) => {
   const { animeId, season, episode } = req.params;
-  const [localResult, bunnyResult] = await Promise.all([
+  const [localResult, sibnetResult] = await Promise.all([
     query(
       `select anime_id, anime_name, season, episode, original_name, file_url, mime_type, created_at,
               'local' as provider,
@@ -806,27 +806,19 @@ app.get("/api/media/:animeId/:season/:episode", async (req, res) => {
       [animeId, season, episode]
     ),
     query(
-      `select anime_id, anime_name, season, episode, original_name,
-              embed_url, direct_url as file_url, 'iframe' as mime_type,
-              created_at, 'bunny' as provider, dub, quality, bunny_video_id, status
-       from bunny_media
+      `select anime_id, anime_name, season, episode, label as original_name,
+              embed_url, embed_url as file_url, 'iframe' as mime_type,
+              created_at, 'sibnet' as provider, label as dub, null::text as quality
+       from sibnet_media
        where anime_id = $1 and season = $2 and episode = $3
-       order by
-         case quality
-           when '2160p' then 1
-           when '1440p' then 2
-           when '1080p' then 3
-           when '720p' then 4
-           else 5
-         end,
-         dub`,
+       order by created_at desc`,
       [animeId, season, episode]
     )
   ]);
 
   const variants = [
-    ...localResult.rows,
-    ...bunnyResult.rows
+    ...sibnetResult.rows,
+    ...localResult.rows
   ];
 
   res.json({ media: variants[0] || null, variants });
@@ -858,6 +850,50 @@ app.post("/api/admin/media", requireAuth, requireAdmin, upload.single("media"), 
   );
 
   res.status(201).json({ media: result.rows[0] });
+});
+
+// Accepts a full <iframe> embed code, a bare URL, a protocol-relative URL, or a
+// plain Sibnet videoid, and normalises it to a usable embed URL.
+function parseEmbedInput(input) {
+  const text = String(input || "").trim();
+  if (!text) return null;
+  const srcMatch = text.match(/src=["']([^"']+)["']/i);
+  if (srcMatch) {
+    const url = srcMatch[1];
+    return url.startsWith("//") ? `https:${url}` : url;
+  }
+  if (/^\d+$/.test(text)) return `https://video.sibnet.ru/shell.php?videoid=${text}`;
+  if (/^\/\//.test(text)) return `https:${text}`;
+  if (/^https?:\/\//i.test(text)) return text;
+  return null;
+}
+
+app.post("/api/admin/sibnet", requireAuth, requireAdmin, async (req, res) => {
+  const { animeId, animeName, season, episode, embed, label } = req.body || {};
+  if (!animeId || !animeName || !season || !episode || !embed) {
+    return res.status(400).json({ error: "sibnet_required" });
+  }
+  const embedUrl = parseEmbedInput(embed);
+  if (!embedUrl) return res.status(400).json({ error: "embed_invalid" });
+
+  const variantLabel = String(label || "Sibnet").trim().slice(0, 60) || "Sibnet";
+  const result = await query(
+    `insert into sibnet_media (anime_id, anime_name, season, episode, label, embed_url)
+     values ($1, $2, $3, $4, $5, $6)
+     on conflict (anime_id, season, episode, label)
+     do update set embed_url = excluded.embed_url,
+                   anime_name = excluded.anime_name,
+                   updated_at = now()
+     returning anime_id, anime_name, season, episode, label, embed_url`,
+    [animeId, animeName, season, episode, variantLabel, embedUrl]
+  );
+  res.status(201).json({ media: result.rows[0] });
+});
+
+app.delete("/api/admin/sibnet/:animeId/:season/:episode", requireAuth, requireAdmin, async (req, res) => {
+  const { animeId, season, episode } = req.params;
+  await query("delete from sibnet_media where anime_id = $1 and season = $2 and episode = $3", [animeId, season, episode]);
+  res.json({ ok: true });
 });
 
 function sanitizeStructure(body) {
