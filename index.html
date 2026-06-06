@@ -222,6 +222,7 @@
           <div class="player-info">
             <div class="player-heading">
               <h1 id="playerTitle">Серия</h1>
+              <div class="player-episode-title" id="playerEpisodeTitle"></div>
               <div class="player-episode-meta" id="playerEpisodeMeta"></div>
             </div>
             <p id="playerMeta"></p>
@@ -229,10 +230,6 @@
               <button id="prevEpisode" type="button">← Предыдущая</button>
               <button id="nextEpisode" type="button">Следующая →</button>
             </div>
-            <label id="dubField" class="hidden">
-              Озвучка
-              <select id="dubSelect"></select>
-            </label>
             <button class="structure-edit-button hidden" id="editPlayerButtons" type="button">🔑 Добавить ключ</button>
           </div>
           <form class="admin-upload hidden" id="sibnetForm">
@@ -242,10 +239,6 @@
                 <option value="hls">Прямая ссылка (m3u8 / mp4) — наш плеер</option>
                 <option value="embed">Embed-код (Sibnet / iframe)</option>
               </select>
-            </label>
-            <label>
-              Озвучка (метка для этого источника)
-              <input id="sibnetDub" type="text" value="anilibra" placeholder="например: anilibra" />
             </label>
             <label>
               Ссылка на видео или embed-код для этой серии
@@ -261,7 +254,6 @@
         <section class="surface comments-panel">
           <div class="section-head">
             <div>
-              <p class="eyebrow">обсуждение серии</p>
               <h2>Комментарии</h2>
             </div>
           </div>

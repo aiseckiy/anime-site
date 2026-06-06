@@ -9,35 +9,20 @@
   const PAUSE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>`;
   const GEAR_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7 7 0 0 0-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.74 8.86a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.58-.24 1.12-.56 1.62-.94l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>`;
   const PIP_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02zM18 11h-7v6h7v-6z"/></svg>`;
+  const GLOBE_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18"/></svg>`;
 
-  // Human-friendly name for an HLS audio track (Japanese / Russian / English).
-  function audioName(track) {
+  // Language label for an HLS audio track — used by the globe (язык) menu.
+  function langName(track) {
     const name = String((track && track.name) || "").trim();
     const lang = String((track && track.lang) || "").trim().toLowerCase();
-    // Prefer an explicit, meaningful track name (e.g. "Studio Band", "AniLibria",
-    // "Japanese"); fall back to the language code only when there is no name.
-    if (name && !/^(audio|track|und|default|undefined|\d+)$/i.test(name)) return name;
-    if (/(jp|jpn|ja|jap|japan|япон)/.test(lang)) return "Japanese";
-    if (/(ru|rus|russ|рус)/.test(lang)) return "Русский";
-    if (/(en|eng|english|англ)/.test(lang)) return "English";
-    return name || lang.toUpperCase() || "Дорожка";
+    if (/(jp|jpn|ja|jap|japan|япон)/.test(lang) || /japan|япон/i.test(name)) return "Японский";
+    if (/(ru|rus|russ|рус)/.test(lang) || /rus|русск/i.test(name)) return "Русский";
+    if (/(en|eng|english|англ)/.test(lang) || /english|англ/i.test(name)) return "English";
+    return name || (lang ? lang.toUpperCase() : "Озвучка");
   }
 
   function esc(value) {
     return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
-  }
-
-  // Clean, human dub label for the «Озвучка» dropdown (one entry per dub, no
-  // quality, no meaningless "Видео").
-  function dubLabel(variant) {
-    const dub = String((variant && variant.dub) || "").trim();
-    if (!dub || /^(видео|video|original|auto|hls|bunny|sibnet)$/i.test(dub)) return "";
-    if (/anilibr/i.test(dub)) return "AniLibria";
-    if (/anidub/i.test(dub)) return "AniDub";
-    if (/(jp|jpn|japan|япон)/i.test(dub)) return "Japanese";
-    if (/(sub|субтит)/i.test(dub)) return "Субтитры";
-    if (/(rus|русск)/i.test(dub)) return "Русский";
-    return dub;
   }
 
   function playerElements() {
@@ -100,6 +85,10 @@
           <span class="dc-time"><span data-role="cur">0:00</span> / <span data-role="dur">0:00</span></span>
         </div>
         <div class="dc-right">
+          <div class="dc-lang hidden" data-role="lang">
+            <button class="dc-btn dc-lang-btn" data-role="langbtn" type="button" aria-label="Язык озвучки">${GLOBE_ICON}</button>
+            <div class="dc-quality-menu dc-lang-menu hidden" data-role="langmenu"></div>
+          </div>
           <div class="dc-quality hidden" data-role="quality">
             <span class="dc-quality-tip" data-role="qlabel">Авто</span>
             <button class="dc-btn dc-gear" data-role="gear" type="button" aria-label="Настройки">${GEAR_ICON}</button>
@@ -117,6 +106,7 @@
       play: pick("play"), mute: pick("mute"), vol: pick("vol"),
       cur: pick("cur"), dur: pick("dur"),
       quality: pick("quality"), gear: pick("gear"), qlabel: pick("qlabel"), qmenu: pick("qmenu"),
+      lang: pick("lang"), langbtn: pick("langbtn"), langmenu: pick("langmenu"),
       pip: pick("pip"), full: pick("full")
     };
     video._dc = dc;
@@ -197,16 +187,32 @@
       });
     }
 
+    const closeMenus = () => {
+      dc.qmenu.classList.add("hidden");
+      dc.quality.classList.remove("menu-open");
+      dc.langmenu.classList.add("hidden");
+      dc.lang.classList.remove("menu-open");
+    };
+
     // Hover the gear -> tooltip with the current quality; click -> open menu.
     dc.gear.addEventListener("click", (event) => {
       event.stopPropagation();
       const hidden = dc.qmenu.classList.toggle("hidden");
       dc.quality.classList.toggle("menu-open", !hidden);
+      dc.langmenu.classList.add("hidden");
+      dc.lang.classList.remove("menu-open");
     });
-    document.addEventListener("click", () => {
+
+    // Globe -> choose audio language (Японский / Русский).
+    dc.langbtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const hidden = dc.langmenu.classList.toggle("hidden");
+      dc.lang.classList.toggle("menu-open", !hidden);
       dc.qmenu.classList.add("hidden");
       dc.quality.classList.remove("menu-open");
     });
+
+    document.addEventListener("click", closeMenus);
 
     // Auto-hide: after 5s without mouse movement the whole control bar slides
     // down out of the way so it doesn't cover the picture. Any movement (or a
@@ -319,42 +325,28 @@
   // Build the «Озвучка» dropdown. If the current video exposes several HLS audio
   // tracks, those ARE the dubs (e.g. AniLibria / Japanese) — list them and
   // switch with hls.audioTrack. Otherwise list the distinct server variants.
-  function refreshDubSelect(video) {
-    const dubSelect = document.querySelector("#dubSelect");
-    if (!dubSelect || !dubSelect._ctx) return;
-    const { variants, item, season, episode } = dubSelect._ctx;
-    const tracks = (video && video._hls && video._hls.audioTracks) || [];
-    const label = dubSelect.closest("label");
+  function buildLangMenu(hls, video) {
+    const dc = video._dc;
+    if (!dc || !dc.lang) return;
+    const tracks = hls.audioTracks || [];
+    // The globe only appears when the video actually carries 2+ audio tracks.
+    dc.lang.classList.toggle("hidden", tracks.length <= 1);
+    if (tracks.length <= 1) return;
 
-    let options = [];
-    if (tracks.length > 1) {
-      options = tracks.map((track, index) => ({
-        value: `aud:${index}`,
-        text: audioName(track),
-        selected: video._hls.audioTrack === index
-      }));
-    } else {
-      const seen = new Map();
-      variants.forEach((variant, index) => {
-        const text = dubLabel(variant);
-        if (text && !seen.has(text)) seen.set(text, index);
+    dc.langmenu.innerHTML = tracks.map((track, index) =>
+      `<button class="dc-q-item${hls.audioTrack === index ? " active" : ""}" type="button" data-audio="${index}">${esc(langName(track))}</button>`
+    ).join("");
+
+    dc.langmenu.querySelectorAll("[data-audio]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        hls.audioTrack = Number(button.dataset.audio);
+        dc.langmenu.querySelectorAll(".dc-q-item").forEach((node) => node.classList.remove("active"));
+        button.classList.add("active");
+        dc.langmenu.classList.add("hidden");
+        dc.lang.classList.remove("menu-open");
       });
-      options = [...seen.entries()].map(([text, index]) => ({ value: `var:${index}`, text, selected: false }));
-    }
-
-    if (label) label.classList.toggle("hidden", options.length === 0);
-    dubSelect.innerHTML = options
-      .map((o) => `<option value="${o.value}"${o.selected ? " selected" : ""}>${esc(o.text)}</option>`)
-      .join("");
-
-    dubSelect.onchange = () => {
-      const value = dubSelect.value;
-      if (value.startsWith("aud:") && video._hls) {
-        video._hls.audioTrack = Number(value.slice(4));
-      } else if (value.startsWith("var:")) {
-        applyVariant(variants[Number(value.slice(4))] || variants[0], item, season, episode);
-      }
-    };
+    });
   }
 
   // Estimate the viewer's bandwidth so hls.js picks a sensible starting
@@ -455,9 +447,9 @@
       video._hls = hls;
       hls.loadSource(url);
       hls.attachMedia(video);
-      hls.on(window.Hls.Events.MANIFEST_PARSED, () => { buildQualityMenu(hls, video); refreshDubSelect(video); });
-      hls.on(window.Hls.Events.AUDIO_TRACKS_UPDATED, () => refreshDubSelect(video));
-      hls.on(window.Hls.Events.AUDIO_TRACK_SWITCHED, () => refreshDubSelect(video));
+      hls.on(window.Hls.Events.MANIFEST_PARSED, () => { buildQualityMenu(hls, video); buildLangMenu(hls, video); });
+      hls.on(window.Hls.Events.AUDIO_TRACKS_UPDATED, () => buildLangMenu(hls, video));
+      hls.on(window.Hls.Events.AUDIO_TRACK_SWITCHED, () => buildLangMenu(hls, video));
       hls.on(window.Hls.Events.LEVEL_SWITCHED, (_event, data) => {
         if (!dc) return;
         const level = hls.levels[data.level];
@@ -714,14 +706,6 @@
     meta.textContent = "";
   }
 
-  function renderVariants(variants, item, season, episode) {
-    const { dubSelect, video } = playerElements();
-    if (!dubSelect || !variants.length) return;
-    // Remember context so the list can be rebuilt once HLS audio tracks load.
-    dubSelect._ctx = { variants, item, season, episode };
-    refreshDubSelect(video);
-  }
-
   async function loadBunnyAwareMedia(item, season, episode) {
     const { video, play } = playerElements();
     const iframe = ensureIframe();
@@ -747,7 +731,6 @@
           ? [data.media]
           : [];
       if (!variants.length) return;
-      renderVariants(variants, item, season, episode);
       applyVariant(variants[0], item, season, episode);
     } catch {
       // Keep the styled placeholder when media has not been linked yet.

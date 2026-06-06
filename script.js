@@ -464,6 +464,7 @@ async function openPlayer(item, season, episode, push = true) {
   $("#playerTitle").textContent = item.name;
   const epMeta = $("#playerEpisodeMeta");
   if (epMeta) epMeta.innerHTML = `<span class="player-chip player-chip-season">${season} сезон</span><span class="player-chip player-chip-episode">${episode} серия</span>`;
+  renderEpisodeTitle(item, season, episode);
   rememberContinue(item, season, episode, getProgress(item.id, season, episode));
   renderEpisodeLocalSocial(item, season, episode);
   setupEpisodeNav(item, season, episode);
@@ -492,6 +493,48 @@ async function loadMedia(item, season, episode) {
 
 function episodeKey(item, season, episode) {
   return `dangoEpisode:${item.id}:${season}:${episode}`;
+}
+
+// Per-episode title shown above the player; admins can add/edit it. Stored in
+// the anime structure (episodeTitles) so every viewer sees it.
+function renderEpisodeTitle(item, season, episode) {
+  const holder = $("#playerEpisodeTitle");
+  if (!holder) return;
+  const key = `s${season}e${episode}`;
+  const title = state.structures[item.id]?.episodeTitles?.[key] || "";
+  holder.innerHTML = "";
+  if (title) {
+    const span = document.createElement("span");
+    span.className = "episode-title-text";
+    span.textContent = title;
+    holder.append(span);
+  }
+  if (isAdmin()) {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "episode-title-edit";
+    edit.textContent = title ? "✎ Изменить название" : "✎ Добавить название серии";
+    edit.onclick = () => editEpisodeTitle(item, season, episode);
+    holder.append(edit);
+  }
+  holder.classList.toggle("hidden", !title && !isAdmin());
+}
+
+async function editEpisodeTitle(item, season, episode) {
+  const key = `s${season}e${episode}`;
+  const current = state.structures[item.id]?.episodeTitles?.[key] || "";
+  const value = prompt("Название серии:", current);
+  if (value === null) return;
+  try {
+    const data = await api(`/api/admin/episode-title/${item.id}/${season}/${episode}`, {
+      method: "PUT",
+      body: JSON.stringify({ title: value.trim() })
+    });
+    if (data.structure) state.structures[item.id] = data.structure;
+    renderEpisodeTitle(item, season, episode);
+  } catch (error) {
+    alert(`Не удалось сохранить: ${error.message}`);
+  }
 }
 
 function renderEpisodeLocalSocial(item, season, episode) {

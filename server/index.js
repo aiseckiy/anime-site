@@ -1101,7 +1101,18 @@ function sanitizeStructure(body) {
     if (!isEmptySkip(epSkip)) episodeSkips[key] = epSkip;
   }
 
-  return { seasons, skip, episodeSkips };
+  return { seasons, skip, episodeSkips, episodeTitles: sanitizeTitles(body?.episodeTitles) };
+}
+
+function sanitizeTitles(raw) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const titles = {};
+  for (const [key, value] of Object.entries(source).slice(0, 5000)) {
+    if (!/^s\d+e\d+$/.test(key)) continue;
+    const title = String(value ?? "").trim().slice(0, 200);
+    if (title) titles[key] = title;
+  }
+  return titles;
 }
 
 function toSeconds(value) {
@@ -1150,6 +1161,11 @@ app.put("/api/admin/structure/:animeId", requireAuth, requireAdmin, async (req, 
   if (!Number.isInteger(animeId)) return res.status(400).json({ error: "invalid_anime_id" });
 
   const structure = sanitizeStructure(req.body);
+  // The structure editor doesn't send episode titles — keep any existing ones.
+  if (!req.body?.episodeTitles) {
+    const existing = await query("select data from anime_structure where anime_id = $1", [animeId]);
+    structure.episodeTitles = sanitizeTitles(existing.rows[0]?.data?.episodeTitles);
+  }
   const result = await query(
     `insert into anime_structure (anime_id, data)
      values ($1, $2)
@@ -1157,6 +1173,33 @@ app.put("/api/admin/structure/:animeId", requireAuth, requireAdmin, async (req, 
      do update set data = excluded.data, updated_at = now()
      returning data`,
     [animeId, JSON.stringify(structure)]
+  );
+  return res.json({ structure: result.rows[0].data });
+});
+
+app.put("/api/admin/episode-title/:animeId/:season/:episode", requireAuth, requireAdmin, async (req, res) => {
+  if (!hasDatabase) return res.status(500).json({ error: "database_required" });
+  const animeId = Number(req.params.animeId);
+  const season = Number(req.params.season);
+  const episode = Number(req.params.episode);
+  if (![animeId, season, episode].every(Number.isInteger)) return res.status(400).json({ error: "invalid_params" });
+
+  const existing = await query("select data from anime_structure where anime_id = $1", [animeId]);
+  const data = existing.rows[0]?.data || { seasons: [], skip: sanitizeSkip(null), episodeSkips: {}, episodeTitles: {} };
+  data.episodeTitles = data.episodeTitles && typeof data.episodeTitles === "object" ? data.episodeTitles : {};
+
+  const key = `s${season}e${episode}`;
+  const title = String(req.body?.title ?? "").trim().slice(0, 200);
+  if (title) data.episodeTitles[key] = title;
+  else delete data.episodeTitles[key];
+
+  const result = await query(
+    `insert into anime_structure (anime_id, data)
+     values ($1, $2)
+     on conflict (anime_id)
+     do update set data = excluded.data, updated_at = now()
+     returning data`,
+    [animeId, JSON.stringify(data)]
   );
   return res.json({ structure: result.rows[0].data });
 });

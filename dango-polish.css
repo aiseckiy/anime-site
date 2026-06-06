@@ -439,13 +439,15 @@
   gap: 5px;
 }
 
-.dc-quality {
+.dc-quality,
+.dc-lang {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.dc-quality.hidden {
+.dc-quality.hidden,
+.dc-lang.hidden {
   display: none;
 }
 
@@ -630,7 +632,8 @@
 }
 
 .fake-player:fullscreen .dc-gear svg,
-.fake-player:fullscreen .dc-pip svg {
+.fake-player:fullscreen .dc-pip svg,
+.fake-player:fullscreen .dc-lang-btn svg {
   width: 24px;
   height: 24px;
 }
@@ -795,18 +798,23 @@
   color: var(--text, #fff);
 }
 
-/* Player episode heading: anime name + season/episode chips */
-/* Keep the episode info at the top of the panel rather than vertically centred. */
+/* Player info column: heading at the top, episode nav pushed near the bottom. */
 .player-page .player-info {
-  align-self: start;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
   padding-top: 4px;
+}
+
+.player-page .player-info .episode-nav {
+  margin-top: auto;
 }
 
 .player-heading {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
   margin: 0 0 12px;
 }
 
@@ -817,30 +825,61 @@
   line-height: 1.1;
 }
 
+/* Per-episode title above the player (admin-editable) */
+.player-episode-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.player-episode-title.hidden {
+  display: none;
+}
+
+.episode-title-text {
+  font-size: clamp(16px, 2vw, 20px);
+  font-weight: 600;
+  color: var(--text, #fff);
+}
+
+.episode-title-edit {
+  padding: 4px 10px;
+  border: 1px dashed var(--line, #3a2c34);
+  border-radius: 8px;
+  background: none;
+  color: var(--muted, #b9a7b2);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.episode-title-edit:hover {
+  color: var(--accent, #ff4fa2);
+  border-color: var(--accent, #ff4fa2);
+}
+
+/* Season / episode shown in one row, same size, no frames */
 .player-episode-meta {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 7px;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 16px;
 }
 
 .player-chip {
-  border-radius: 8px;
-  background: var(--panel-2, rgba(255, 255, 255, .08));
-  border: 1px solid var(--line, #3a2c34);
-  color: var(--text, #fff);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--muted, #c8b9c2);
+  font-size: 18px;
   font-weight: 700;
   white-space: nowrap;
 }
 
-.player-chip-season {
-  padding: 5px 14px;
-  font-size: 16px;
-}
-
+.player-chip-season,
 .player-chip-episode {
-  padding: 4px 11px;
-  font-size: 12px;
+  font-size: 18px;
 }
 
 /* Admin: add-anime button + cover edit on cards */
