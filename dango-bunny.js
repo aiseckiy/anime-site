@@ -14,15 +14,28 @@
   function audioName(track) {
     const raw = String((track && (track.name || track.lang)) || "").trim();
     const probe = `${raw} ${(track && track.lang) || ""}`.toLowerCase();
-    if (/(^|[^a-z])(jp|jpn|ja|jap|japan)|япон/.test(probe)) return "Японский";
-    if (/(^|[^a-z])(ru|rus|russ)|рус/.test(probe)) return "Русский";
+    if (/(^|[^a-z])(jp|jpn|ja|jap|japan)|япон/.test(probe)) return "Japanese";
+    if (/anilibr/.test(probe)) return "AniLibria";
+    if (/(^|[^a-z])(ru|rus|russ)|рус/.test(probe)) return "AniLibria";
     if (/(^|[^a-z])(en|eng|english)|англ/.test(probe)) return "English";
     return raw || "Дорожка";
   }
 
-  function setActiveItem(menu, attr, button) {
-    menu.querySelectorAll(`[data-${attr}]`).forEach((node) => node.classList.remove("active"));
-    button.classList.add("active");
+  function esc(value) {
+    return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+  }
+
+  // Clean, human dub label for the «Озвучка» dropdown (one entry per dub, no
+  // quality, no meaningless "Видео").
+  function dubLabel(variant) {
+    const dub = String((variant && variant.dub) || "").trim();
+    if (!dub || /^(видео|video|original|auto|hls|bunny|sibnet)$/i.test(dub)) return "";
+    if (/anilibr/i.test(dub)) return "AniLibria";
+    if (/anidub/i.test(dub)) return "AniDub";
+    if (/(jp|jpn|japan|япон)/i.test(dub)) return "Japanese";
+    if (/(sub|субтит)/i.test(dub)) return "Субтитры";
+    if (/(rus|русск)/i.test(dub)) return "Русский";
+    return dub;
   }
 
   function playerElements() {
@@ -51,11 +64,6 @@
       shell.appendChild(iframe);
     }
     return iframe;
-  }
-
-  function labelVariant(variant) {
-    const parts = [variant.dub, variant.quality].filter(Boolean);
-    return parts.length ? parts.join(" • ") : "Видео";
   }
 
   function fmtTime(value) {
@@ -218,19 +226,42 @@
     video.addEventListener("pause", showControls);
     video.addEventListener("play", showControls);
 
-    // Arrow keys jump 5 seconds back/forward while the local player is on screen.
+    // YouTube-style "−5 / +5" splash that flashes on the side you seek toward.
+    const seekHintL = document.createElement("div");
+    seekHintL.className = "dc-seek-hint dc-seek-left";
+    seekHintL.textContent = "−5";
+    const seekHintR = document.createElement("div");
+    seekHintR.className = "dc-seek-hint dc-seek-right";
+    seekHintR.textContent = "+5";
+    shell.append(seekHintL, seekHintR);
+    const flashSeekHint = (delta) => {
+      const el = delta < 0 ? seekHintL : seekHintR;
+      el.classList.add("show");
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.remove("show"), 600);
+    };
+
+    // Keyboard: Space toggles play/pause, ←/→ jump 5s (with the splash).
     document.addEventListener("keydown", (event) => {
       if (video.classList.contains("hidden")) return;
       const playerView = document.querySelector("#playerView");
       if (!playerView || !playerView.classList.contains("active")) return;
       const tag = (document.activeElement && document.activeElement.tagName) || "";
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (event.code === "Space" || event.key === " " || event.key === "Spacebar") {
+        event.preventDefault();
+        togglePlay();
+        showControls();
+        return;
+      }
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       if (!video.duration) return;
       event.preventDefault();
       video._previewPending = false; // an explicit seek cancels the preview reset
       const delta = event.key === "ArrowLeft" ? -5 : 5;
       video.currentTime = Math.min(video.duration, Math.max(0, video.currentTime + delta));
+      flashSeekHint(delta);
       showControls();
     });
 
@@ -250,59 +281,78 @@
     if (video && video._centerPlay) video._centerPlay.classList.add("hidden");
   }
 
-  // Populate the in-video gear menu: quality (1080p → … → Авто) and, if the HLS
-  // stream carries more than one audio track, an «Озвучка» switch (JP / RU).
+  // Gear menu = quality only (1080p → … → Авто). Audio/dub lives in the
+  // «Озвучка» dropdown next to the player, not here.
   function buildQualityMenu(hls, video) {
     const dc = video._dc;
     if (!dc) return;
     const levels = hls.levels || [];
-    const audioTracks = hls.audioTracks || [];
-    const hasQuality = levels.length > 1;
-    const hasAudio = audioTracks.length > 1;
-    dc.quality.classList.toggle("hidden", !hasQuality && !hasAudio);
-    if (!hasQuality && !hasAudio) return;
+    dc.quality.classList.toggle("hidden", levels.length <= 1);
+    if (levels.length <= 1) return;
 
-    const item = (text, attr, value, active) =>
-      `<button class="dc-q-item${active ? " active" : ""}" type="button" data-${attr}="${value}">${text}</button>`;
-
-    let html = "";
-    if (hasQuality) {
-      const ordered = levels
-        .map((level, index) => ({ index, level }))
-        .sort((a, b) => (b.level.height || b.level.bitrate || 0) - (a.level.height || a.level.bitrate || 0));
-      html += `<div class="dc-q-group">Качество</div>`;
-      html += ordered.map(({ index, level }) => {
-        const name = level.height ? `${level.height}p` : `${Math.round((level.bitrate || 0) / 1000)}k`;
-        return item(name, "level", index, !hls.autoLevelEnabled && hls.currentLevel === index);
-      }).join("");
-      html += item("Авто", "level", -1, hls.autoLevelEnabled);
-    }
-    if (hasAudio) {
-      html += `<div class="dc-q-group">Озвучка</div>`;
-      html += audioTracks.map((track, index) =>
-        item(audioName(track), "audio", index, hls.audioTrack === index)
-      ).join("");
-    }
+    const item = (text, value, active) =>
+      `<button class="dc-q-item${active ? " active" : ""}" type="button" data-level="${value}">${text}</button>`;
+    const ordered = levels
+      .map((level, index) => ({ index, level }))
+      .sort((a, b) => (b.level.height || b.level.bitrate || 0) - (a.level.height || a.level.bitrate || 0));
+    let html = ordered.map(({ index, level }) => {
+      const name = level.height ? `${level.height}p` : `${Math.round((level.bitrate || 0) / 1000)}k`;
+      return item(name, index, !hls.autoLevelEnabled && hls.currentLevel === index);
+    }).join("");
+    html += item("Авто", -1, hls.autoLevelEnabled);
     dc.qmenu.innerHTML = html;
 
-    dc.qmenu.querySelectorAll("[data-level]").forEach((button) => {
+    dc.qmenu.querySelectorAll(".dc-q-item").forEach((button) => {
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         hls.currentLevel = Number(button.dataset.level);
-        setActiveItem(dc.qmenu, "level", button);
+        dc.qmenu.querySelectorAll(".dc-q-item").forEach((node) => node.classList.remove("active"));
+        button.classList.add("active");
         dc.qmenu.classList.add("hidden");
         dc.quality.classList.remove("menu-open");
       });
     });
-    dc.qmenu.querySelectorAll("[data-audio]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.stopPropagation();
-        hls.audioTrack = Number(button.dataset.audio);
-        setActiveItem(dc.qmenu, "audio", button);
-        dc.qmenu.classList.add("hidden");
-        dc.quality.classList.remove("menu-open");
+  }
+
+  // Build the «Озвучка» dropdown. If the current video exposes several HLS audio
+  // tracks, those ARE the dubs (e.g. AniLibria / Japanese) — list them and
+  // switch with hls.audioTrack. Otherwise list the distinct server variants.
+  function refreshDubSelect(video) {
+    const dubSelect = document.querySelector("#dubSelect");
+    if (!dubSelect || !dubSelect._ctx) return;
+    const { variants, item, season, episode } = dubSelect._ctx;
+    const tracks = (video && video._hls && video._hls.audioTracks) || [];
+    const label = dubSelect.closest("label");
+
+    let options = [];
+    if (tracks.length > 1) {
+      options = tracks.map((track, index) => ({
+        value: `aud:${index}`,
+        text: audioName(track),
+        selected: video._hls.audioTrack === index
+      }));
+    } else {
+      const seen = new Map();
+      variants.forEach((variant, index) => {
+        const text = dubLabel(variant);
+        if (text && !seen.has(text)) seen.set(text, index);
       });
-    });
+      options = [...seen.entries()].map(([text, index]) => ({ value: `var:${index}`, text, selected: false }));
+    }
+
+    if (label) label.classList.toggle("hidden", options.length === 0);
+    dubSelect.innerHTML = options
+      .map((o) => `<option value="${o.value}"${o.selected ? " selected" : ""}>${esc(o.text)}</option>`)
+      .join("");
+
+    dubSelect.onchange = () => {
+      const value = dubSelect.value;
+      if (value.startsWith("aud:") && video._hls) {
+        video._hls.audioTrack = Number(value.slice(4));
+      } else if (value.startsWith("var:")) {
+        applyVariant(variants[Number(value.slice(4))] || variants[0], item, season, episode);
+      }
+    };
   }
 
   // Estimate the viewer's bandwidth so hls.js picks a sensible starting
@@ -403,9 +453,9 @@
       video._hls = hls;
       hls.loadSource(url);
       hls.attachMedia(video);
-      hls.on(window.Hls.Events.MANIFEST_PARSED, () => buildQualityMenu(hls, video));
-      hls.on(window.Hls.Events.AUDIO_TRACKS_UPDATED, () => buildQualityMenu(hls, video));
-      hls.on(window.Hls.Events.AUDIO_TRACK_SWITCHED, () => buildQualityMenu(hls, video));
+      hls.on(window.Hls.Events.MANIFEST_PARSED, () => { buildQualityMenu(hls, video); refreshDubSelect(video); });
+      hls.on(window.Hls.Events.AUDIO_TRACKS_UPDATED, () => refreshDubSelect(video));
+      hls.on(window.Hls.Events.AUDIO_TRACK_SWITCHED, () => refreshDubSelect(video));
       hls.on(window.Hls.Events.LEVEL_SWITCHED, (_event, data) => {
         if (!dc) return;
         const level = hls.levels[data.level];
@@ -663,17 +713,11 @@
   }
 
   function renderVariants(variants, item, season, episode) {
-    const { dubSelect } = playerElements();
+    const { dubSelect, video } = playerElements();
     if (!dubSelect || !variants.length) return;
-
-    dubSelect.innerHTML = variants.map((variant, index) => (
-      `<option value="${index}">${labelVariant(variant)}</option>`
-    )).join("");
-
-    dubSelect.onchange = () => {
-      const variant = variants[Number(dubSelect.value)] || variants[0];
-      applyVariant(variant, item, season, episode);
-    };
+    // Remember context so the list can be rebuilt once HLS audio tracks load.
+    dubSelect._ctx = { variants, item, season, episode };
+    refreshDubSelect(video);
   }
 
   async function loadBunnyAwareMedia(item, season, episode) {
