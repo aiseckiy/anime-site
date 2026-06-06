@@ -890,6 +890,30 @@ app.post("/api/admin/bunny/sync", requireAuth, requireAdmin, async (_req, res) =
   }
 });
 
+// Admin diagnostics: what Bunny env is configured (booleans only) and what rows
+// are stored for an episode, so 404s can be traced without leaking secrets.
+app.get("/api/admin/bunny/debug/:animeId/:season/:episode", requireAuth, requireAdmin, async (req, res) => {
+  if (!hasDatabase) return res.status(500).json({ error: "database_required" });
+  const { animeId, season, episode } = req.params;
+  const rows = await query(
+    `select anime_id, anime_name, season, episode, dub, quality, original_name,
+            bunny_video_id, embed_url, hls_url, status, updated_at
+     from bunny_media
+     where anime_id = $1 and season = $2 and episode = $3
+     order by quality desc`,
+    [animeId, season, episode]
+  );
+  res.json({
+    env: {
+      libraryId: Boolean(process.env.BUNNY_STREAM_LIBRARY_ID),
+      apiKey: Boolean(process.env.BUNNY_STREAM_API_KEY),
+      cdnHostname: process.env.BUNNY_STREAM_CDN_HOSTNAME || process.env.BUNNY_STREAM_PULL_ZONE || null
+    },
+    count: rows.rows.length,
+    rows: rows.rows
+  });
+});
+
 app.get("/api/media/:animeId/:season/:episode", async (req, res) => {
   const { animeId, season, episode } = req.params;
   const [bunnyResult, localResult, sibnetResult] = await Promise.all([
@@ -897,6 +921,7 @@ app.get("/api/media/:animeId/:season/:episode", async (req, res) => {
       `select anime_id, anime_name, season, episode, original_name,
               coalesce(nullif(hls_url, ''), embed_url) as file_url,
               case when nullif(hls_url, '') is null then embed_url else null end as embed_url,
+              embed_url as embed_fallback,
               case when nullif(hls_url, '') is null then 'bunny' else 'hls' end as provider,
               dub, quality, 'application/vnd.apple.mpegurl' as mime_type, created_at
        from bunny_media

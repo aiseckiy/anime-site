@@ -298,12 +298,35 @@
     else video.addEventListener("loadedmetadata", jump, { once: true });
   }
 
+  // Fallback when an HLS URL fails (e.g. wrong CDN host, 404, token-protected):
+  // switch to the Bunny iframe embed if we have one, otherwise show a message.
+  function fallbackToEmbed(video, embedUrl, reason) {
+    const { meta } = playerElements();
+    const iframe = ensureIframe();
+    clearHls(video);
+    video.classList.add("hidden");
+    video.removeAttribute("src");
+    if (embedUrl && iframe) {
+      let src = embedUrl;
+      if (/mediadelivery\.net/i.test(src)) {
+        try { const url = new URL(src); url.searchParams.set("autoplay", "false"); src = url.toString(); } catch {}
+      }
+      iframe.src = src;
+      iframe.classList.remove("hidden");
+      if (meta) meta.textContent = "HLS-ссылка недоступна — включён встроенный плеер Bunny.";
+    } else if (meta) {
+      meta.textContent = `Видео не загрузилось${reason ? ` (${reason})` : ""}. Проверьте Bunny: CDN-хост, токен-защиту и готовность кодирования.`;
+    }
+  }
+
   // Play a direct video URL in our own <video>: .m3u8 via hls.js (adaptive +
   // in-video quality menu), other formats natively. Custom controls always on.
-  function attachHls(video, url) {
+  // `embedFallback` is an optional Bunny iframe URL used if HLS playback fails.
+  function attachHls(video, url, embedFallback) {
     clearHls(video);
     video.preload = "metadata";
     video.controls = false;
+    video._embedFallback = embedFallback || null;
     const dc = ensureCustomControls(video);
     dc?.bar.classList.remove("hidden");
 
@@ -324,8 +347,21 @@
           dc.qlabel.textContent = level && level.height ? `Авто (${level.height}p)` : "Авто";
         }
       });
+      hls.on(window.Hls.Events.ERROR, (_event, data) => {
+        // A 404 / network manifest error is fatal and unrecoverable here.
+        if (data && data.fatal) {
+          const code = (data.response && data.response.code) || data.details || data.type;
+          console.warn("[DANGO] HLS error", code, "url:", url, data);
+          fallbackToEmbed(video, video._embedFallback, code);
+        }
+      });
+    } else if (isM3u8 && video.canPlayType("application/vnd.apple.mpegurl")) {
+      // Safari / iOS: native HLS.
+      video.src = url;
+      video.addEventListener("error", () => fallbackToEmbed(video, video._embedFallback, "404"), { once: true });
     } else {
       video.src = url;
+      video.addEventListener("error", () => fallbackToEmbed(video, video._embedFallback, "404"), { once: true });
     }
     setMiddlePreview(video);
   }
@@ -522,7 +558,7 @@
     } else if (variant.file_url) {
       iframe?.classList.add("hidden");
       if (iframe) iframe.removeAttribute("src");
-      attachHls(video, variant.file_url);
+      attachHls(video, variant.file_url, variant.embed_fallback);
       video.classList.remove("hidden");
     }
 
