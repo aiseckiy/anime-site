@@ -281,12 +281,16 @@ function bunnyDirectUrl(libraryId, videoId) {
 
 // Direct HLS playlist served by the Bunny Stream CDN (pull zone). Needs the
 // library's CDN hostname, e.g. BUNNY_STREAM_CDN_HOSTNAME=vz-xxxx.b-cdn.net.
-// Without it we fall back to the iframe embed.
+// We validate it so a pasted GUID/API key or the docs placeholder can't produce
+// a broken 404 URL — in that case we return null and the iframe embed is used.
 function bunnyHlsUrl(videoId) {
-  const host = process.env.BUNNY_STREAM_CDN_HOSTNAME || process.env.BUNNY_STREAM_PULL_ZONE;
+  let host = process.env.BUNNY_STREAM_CDN_HOSTNAME || process.env.BUNNY_STREAM_PULL_ZONE;
   if (!host || !videoId) return null;
-  const clean = String(host).replace(/^https?:\/\//, "").replace(/\/+$/, "");
-  return `https://${clean}/${videoId}/playlist.m3u8`;
+  host = String(host).trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  if (!host.includes(".")) return null;                 // a GUID/key, not a hostname
+  if (/x{3,}/i.test(host)) return null;                 // the vz-xxxx... placeholder
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host)) return null;
+  return `https://${host}/${videoId}/playlist.m3u8`;
 }
 
 async function listBunnyVideos() {
@@ -919,11 +923,7 @@ app.get("/api/media/:animeId/:season/:episode", async (req, res) => {
   const [bunnyResult, localResult, sibnetResult] = await Promise.all([
     query(
       `select anime_id, anime_name, season, episode, original_name,
-              coalesce(nullif(hls_url, ''), embed_url) as file_url,
-              case when nullif(hls_url, '') is null then embed_url else null end as embed_url,
-              embed_url as embed_fallback,
-              case when nullif(hls_url, '') is null then 'bunny' else 'hls' end as provider,
-              dub, quality, 'application/vnd.apple.mpegurl' as mime_type, created_at
+              bunny_video_id, dub, quality
        from bunny_media
        where anime_id = $1 and season = $2 and episode = $3
        order by quality desc, created_at desc`,
@@ -953,8 +953,32 @@ app.get("/api/media/:animeId/:season/:episode", async (req, res) => {
     )
   ]);
 
+  // Build Bunny URLs from the stored video id at read time so changing the CDN
+  // host (or fixing it) takes effect without re-syncing. The iframe embed only
+  // needs the library id, so it always works; HLS is used only when a real CDN
+  // host is configured, with the embed kept as a fallback.
+  const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
+  const bunnyVariants = bunnyResult.rows.map((row) => {
+    const embed = bunnyEmbedUrl(libraryId, row.bunny_video_id);
+    const hls = bunnyHlsUrl(row.bunny_video_id);
+    return {
+      anime_id: row.anime_id,
+      anime_name: row.anime_name,
+      season: row.season,
+      episode: row.episode,
+      original_name: row.original_name,
+      dub: row.dub,
+      quality: row.quality,
+      provider: hls ? "hls" : "bunny",
+      file_url: hls || embed,
+      embed_url: hls ? null : embed,
+      embed_fallback: embed,
+      mime_type: hls ? "application/vnd.apple.mpegurl" : "iframe"
+    };
+  });
+
   const variants = [
-    ...bunnyResult.rows,
+    ...bunnyVariants,
     ...sibnetResult.rows,
     ...localResult.rows
   ];
