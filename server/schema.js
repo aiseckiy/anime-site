@@ -92,6 +92,8 @@ export async function initSchema() {
       unique (anime_id, season, episode, dub, quality)
     );
 
+    alter table bunny_media add column if not exists hls_url text;
+
     create index if not exists bunny_media_episode_idx
       on bunny_media (anime_id, season, episode);
 

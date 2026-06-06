@@ -104,32 +104,66 @@ async function sendResetCode(email, login, code) {
   return "email";
 }
 
-const bunnyTitleMap = [
-  {
-    id: 1,
-    name: "Demon Slayer",
-    season: 1,
-    aliases: ["kimetsu no yaiba", "kimetsu_no_yaiba", "demon slayer", "klinok rassekayushchiy demonov", "клинок рассекающий демонов"]
-  },
-  {
-    id: 11,
-    name: "Naruto Shippuden",
-    season: 2,
-    aliases: ["naruto shippuden", "naruuto season 2", "naruto"]
-  },
-  {
-    id: 2,
-    name: "Jujutsu Kaisen",
-    season: 1,
-    aliases: ["jujutsu kaisen", "jjk", "магическая битва"]
-  },
-  {
-    id: 5,
-    name: "Haikyu!!",
-    season: 1,
-    aliases: ["haikyuu", "haikyu", "волейбол"]
-  }
+// Catalog mirror — ids MUST match the frontend `anime` array in script.js so a
+// synced Bunny video lands on the same title the player later requests media for.
+const animeCatalog = [
+  [1, "Demon Slayer", "Клинок, рассекающий демонов", "kimetsu no yaiba", "клинок"],
+  [2, "Jujutsu Kaisen", "Магическая битва", "jjk", "jujutsu"],
+  [3, "Attack on Titan", "Атака титанов", "shingeki no kyojin", "атака титанов"],
+  [4, "Haikyu!!", "Волейбол", "haikyuu", "haikyu"],
+  [5, "Naruto Shippuden", "Наруто Ураганные хроники", "naruto shippuuden", "наруто"],
+  [6, "One Piece", "Ван Пис", "ван пис"],
+  [7, "Death Note", "Тетрадь смерти", "тетрадь смерти"],
+  [8, "Fullmetal Alchemist: Brotherhood", "Стальной алхимик", "fullmetal alchemist", "стальной алхимик"],
+  [9, "My Hero Academia", "Моя геройская академия", "boku no hero academia", "геройская академия"],
+  [10, "Chainsaw Man", "Человек-бензопила", "человек бензопила"],
+  [11, "Blue Lock", "Синяя тюрьма", "синяя тюрьма"],
+  [12, "Frieren: Beyond Journey's End", "Фрирен", "sousou no frieren", "фрирен"],
+  [13, "Spy x Family", "Семья шпиона", "spy family", "семья шпиона"],
+  [14, "Tokyo Ghoul", "Токийский гуль", "токийский гуль"],
+  [15, "Black Clover", "Черный клевер", "черный клевер"],
+  [16, "Hunter x Hunter", "Охотник х Охотник", "hunter hunter", "охотник"],
+  [17, "Bleach", "Блич", "блич"],
+  [18, "Dragon Ball Z", "Драконий жемчуг Z", "dragon ball z", "драконий жемчуг"],
+  [19, "Violet Evergarden", "Вайолет Эвергарден", "violet evergarden", "эвергарден"],
+  [20, "Code Geass", "Код Гиас", "код гиас"],
+  [21, "Cowboy Bebop", "Ковбой Бибоп", "ковбой бибоп"],
+  [22, "Neon Genesis Evangelion", "Евангелион", "evangelion", "евангелион"],
+  [23, "Solo Leveling", "Поднятие уровня в одиночку", "ore dake level up", "solo leveling"],
+  [24, "Vinland Saga", "Сага о Винланде", "vinland saga", "винланд"],
+  [25, "Mob Psycho 100", "Моб Психо 100", "mob psycho"],
+  [26, "Tokyo Revengers", "Токийские мстители", "tokyo revengers", "мстители токио"],
+  [27, "Sword Art Online", "Мастера меча онлайн", "sword art online", "sao"],
+  [28, "Your Name", "Твое имя", "kimi no na wa", "твое имя"],
+  [29, "Weathering With You", "Дитя погоды", "tenki no ko", "дитя погоды"],
+  [30, "A Silent Voice", "Форма голоса", "koe no katachi", "форма голоса"],
+  [31, "Steins;Gate", "Врата Штейна", "steins gate", "врата штейна"],
+  [32, "Kaguya-sama: Love is War", "Госпожа Кагуя", "kaguya sama", "кагуя"],
+  [33, "Horimiya", "Хоримия", "хоримия"],
+  [34, "The Promised Neverland", "Обещанный Неверленд", "yakusoku no neverland", "неверленд"],
+  [35, "Dr. Stone", "Доктор Стоун", "dr stone", "доктор стоун"],
+  [36, "JoJo's Bizarre Adventure", "Невероятные приключения ДжоДжо", "jojo", "джоджо"],
+  [37, "Parasyte", "Паразит", "kiseijuu", "паразит"],
+  [38, "Erased", "Город, в котором меня нет", "boku dake ga inai machi", "erased"],
+  [39, "Made in Abyss", "Созданный в Бездне", "made in abyss", "созданный в бездне"],
+  [40, "Re:Zero", "Ре:Зеро", "re zero", "rezero"],
+  [41, "Konosuba", "Этот замечательный мир", "konosuba", "замечательный мир"],
+  [42, "Mushoku Tensei", "Реинкарнация безработного", "mushoku tensei", "реинкарнация безработного"],
+  [43, "Overlord", "Повелитель", "повелитель"],
+  [44, "No Game No Life", "Нет игры - нет жизни", "no game no life"],
+  [45, "Noragami", "Бездомный бог", "бездомный бог"],
+  [46, "Oshi no Ko", "Звездное дитя", "oshi no ko", "звездное дитя"],
+  [47, "Cyberpunk: Edgerunners", "Киберпанк: Бегущие по краю", "cyberpunk edgerunners", "киберпанк"],
+  [48, "Dandadan", "Дандадан", "дандадан"],
+  [49, "Kaiju No. 8", "Кайдзю номер 8", "kaiju no 8", "кайдзю"]
 ];
+
+const bunnyTitleMap = animeCatalog.map(([id, name, ...aliases]) => ({
+  id,
+  name,
+  season: 1,
+  aliases: [name, ...aliases]
+}));
 
 function normalizeMediaName(value = "") {
   return String(value)
@@ -140,27 +174,79 @@ function normalizeMediaName(value = "") {
     .trim();
 }
 
-function titleFromBunnyName(titlePart) {
-  const normalized = normalizeMediaName(titlePart);
-  return bunnyTitleMap.find((entry) => entry.aliases.some((alias) => normalized.includes(normalizeMediaName(alias))));
+// Match against every alias and keep the longest one that appears in the name,
+// so "One Piece" wins over a stray "piece" and specific titles beat generic ones.
+function titleFromBunnyName(name) {
+  const normalized = normalizeMediaName(name);
+  let best = null;
+  let bestLen = 0;
+  for (const entry of bunnyTitleMap) {
+    for (const alias of entry.aliases) {
+      const a = normalizeMediaName(alias);
+      if (a && normalized.includes(a) && a.length > bestLen) {
+        best = entry;
+        bestLen = a.length;
+      }
+    }
+  }
+  return best;
+}
+
+// Pull an episode number out of many common naming styles.
+function extractEpisode(title) {
+  const t = String(title);
+  const patterns = [
+    /\[(\d{1,4})\]/,                                            // [12]
+    /s\d{1,2}\s*[._-]?\s*e\s*(\d{1,4})/i,                       // S01E12
+    /\b\d{1,2}\s*x\s*(\d{1,4})\b/i,                             // 1x12
+    /(?:episode|epis|\bep|\be|серия|серии|эпизод)\s*[._-]?\s*(\d{1,4})/i, // ep 12 / серия 12
+    /[-–—]\s*(\d{1,4})(?=\D|$)/,                                // - 12
+    /(\d{1,4})\s*(?:\.[a-z0-9]{2,5})?\s*$/i                     // trailing 12 / 12.mp4
+  ];
+  for (const pattern of patterns) {
+    const match = t.match(pattern);
+    if (match) {
+      const episode = Number(match[1]);
+      if (Number.isFinite(episode) && episode > 0 && episode < 5000) return episode;
+    }
+  }
+  return null;
+}
+
+// Explicit season in the title (S01E.., "season 2", "2 сезон"); null if absent.
+function extractSeason(title) {
+  const t = String(title);
+  const patterns = [
+    /s\s*(\d{1,2})\s*[._-]?\s*e\s*\d{1,4}/i,
+    /(?:season|сезон[а-я]*)\s*[#:.]?\s*(\d{1,2})/i,
+    /(\d{1,2})\s*(?:season|сезон[а-я]*)/i
+  ];
+  for (const pattern of patterns) {
+    const match = t.match(pattern);
+    if (match) {
+      const season = Number(match[1]);
+      if (Number.isFinite(season) && season > 0 && season < 100) return season;
+    }
+  }
+  return null;
 }
 
 function parseBunnyVideoTitle(rawTitle = "") {
   const originalName = String(rawTitle).trim();
-  const bracketTokens = [...originalName.matchAll(/\[([^\]]+)\]/g)].map((match) => match[1].trim()).filter(Boolean);
-  const titlePart = originalName.split("[")[0] || originalName;
-  const titleMatch = titleFromBunnyName(titlePart);
-  const episodeToken = bracketTokens.find((token) => /^\d{1,3}$/.test(token));
-  const episode = episodeToken ? Number(episodeToken) : null;
-  const dubToken = bracketTokens.find((token) => /anilibria|anidub|dub|sub|озвуч/i.test(token));
-  const qualityToken = bracketTokens.find((token) => /\d{3,4}p|4k|uhd|hd/i.test(token));
+  if (!originalName) return null;
 
-  if (!titleMatch || !episode) return null;
+  const titleMatch = titleFromBunnyName(originalName);
+  const episode = extractEpisode(originalName);
+  if (!titleMatch || episode == null) return null;
+
+  const season = extractSeason(originalName) ?? titleMatch.season ?? 1;
+  const dubToken = originalName.match(/anilibria|anidub|dub|sub|озвуч\w*|субтит\w*/i)?.[0];
+  const qualityToken = originalName.match(/\d{3,4}p|4k|uhd|hd/i)?.[0];
 
   return {
     animeId: titleMatch.id,
     animeName: titleMatch.name,
-    season: titleMatch.season,
+    season,
     episode,
     dub: normalizeDub(dubToken),
     quality: normalizeQuality(qualityToken),
@@ -191,6 +277,16 @@ function bunnyEmbedUrl(libraryId, videoId) {
 
 function bunnyDirectUrl(libraryId, videoId) {
   return `https://video.bunnycdn.com/play/${libraryId}/${videoId}`;
+}
+
+// Direct HLS playlist served by the Bunny Stream CDN (pull zone). Needs the
+// library's CDN hostname, e.g. BUNNY_STREAM_CDN_HOSTNAME=vz-xxxx.b-cdn.net.
+// Without it we fall back to the iframe embed.
+function bunnyHlsUrl(videoId) {
+  const host = process.env.BUNNY_STREAM_CDN_HOSTNAME || process.env.BUNNY_STREAM_PULL_ZONE;
+  if (!host || !videoId) return null;
+  const clean = String(host).replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  return `https://${clean}/${videoId}/playlist.m3u8`;
 }
 
 async function listBunnyVideos() {
@@ -285,13 +381,14 @@ async function saveBunnyVideo(video, parsed) {
 
   const result = await query(
     `insert into bunny_media
-       (anime_id, anime_name, season, episode, dub, quality, original_name, bunny_video_id, embed_url, direct_url, status)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (anime_id, anime_name, season, episode, dub, quality, original_name, bunny_video_id, embed_url, direct_url, hls_url, status)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      on conflict (anime_id, season, episode, dub, quality)
      do update set original_name = excluded.original_name,
                    bunny_video_id = excluded.bunny_video_id,
                    embed_url = excluded.embed_url,
                    direct_url = excluded.direct_url,
+                   hls_url = excluded.hls_url,
                    status = excluded.status,
                    updated_at = now()
      returning *`,
@@ -306,6 +403,7 @@ async function saveBunnyVideo(video, parsed) {
       videoId,
       bunnyEmbedUrl(libraryId, videoId),
       bunnyDirectUrl(libraryId, videoId),
+      bunnyHlsUrl(videoId),
       String(video.status ?? video.encodeProgress ?? "ready")
     ]
   );
@@ -794,7 +892,18 @@ app.post("/api/admin/bunny/sync", requireAuth, requireAdmin, async (_req, res) =
 
 app.get("/api/media/:animeId/:season/:episode", async (req, res) => {
   const { animeId, season, episode } = req.params;
-  const [localResult, sibnetResult] = await Promise.all([
+  const [bunnyResult, localResult, sibnetResult] = await Promise.all([
+    query(
+      `select anime_id, anime_name, season, episode, original_name,
+              coalesce(nullif(hls_url, ''), embed_url) as file_url,
+              case when nullif(hls_url, '') is null then embed_url else null end as embed_url,
+              case when nullif(hls_url, '') is null then 'bunny' else 'hls' end as provider,
+              dub, quality, 'application/vnd.apple.mpegurl' as mime_type, created_at
+       from bunny_media
+       where anime_id = $1 and season = $2 and episode = $3
+       order by quality desc, created_at desc`,
+      [animeId, season, episode]
+    ),
     query(
       `select anime_id, anime_name, season, episode, original_name, file_url, mime_type, created_at,
               'local' as provider,
@@ -820,6 +929,7 @@ app.get("/api/media/:animeId/:season/:episode", async (req, res) => {
   ]);
 
   const variants = [
+    ...bunnyResult.rows,
     ...sibnetResult.rows,
     ...localResult.rows
   ];

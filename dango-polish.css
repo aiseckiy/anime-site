@@ -668,34 +668,51 @@
 }
 
 /* Player episode heading: anime name + season/episode chips */
+/* Keep the episode info at the top of the panel rather than vertically centred. */
+.player-page .player-info {
+  align-self: start;
+  padding-top: 4px;
+}
+
 .player-heading {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 12px;
-  margin-bottom: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 12px;
 }
 
 .player-heading h1 {
   margin: 0;
-  font-size: clamp(20px, 3vw, 28px);
-  line-height: 1.15;
+  font-size: clamp(28px, 4.4vw, 44px);
+  font-weight: 800;
+  line-height: 1.1;
 }
 
 .player-episode-meta {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
 }
 
 .player-chip {
-  padding: 4px 11px;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--panel-2, rgba(255, 255, 255, .08));
   border: 1px solid var(--line, #3a2c34);
   color: var(--text, #fff);
-  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.player-chip-season {
+  padding: 5px 14px;
+  font-size: 16px;
+}
+
+.player-chip-episode {
+  padding: 4px 11px;
+  font-size: 12px;
 }
 
 /* Admin: add-anime button + cover edit on cards */
@@ -840,6 +857,12 @@
   color: var(--button-text, #fff);
   background: var(--button, rgba(255,79,162,.25));
   cursor: pointer;
+}
+
+/* Safety net: any element flagged .hidden must actually be hidden, even if it
+   has no component-specific rule (fixes admin-only buttons leaking to guests). */
+.hidden {
+  display: none !important;
 }
 
 /* Structure editor overlay */

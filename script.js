@@ -463,7 +463,7 @@ async function openPlayer(item, season, episode, push = true) {
   routeTo("player", { id: item.id, season, episode }, push);
   $("#playerTitle").textContent = item.name;
   const epMeta = $("#playerEpisodeMeta");
-  if (epMeta) epMeta.innerHTML = `<span class="player-chip">${season} сезон</span><span class="player-chip">${episode} серия</span>`;
+  if (epMeta) epMeta.innerHTML = `<span class="player-chip player-chip-season">${season} сезон</span><span class="player-chip player-chip-episode">${episode} серия</span>`;
   rememberContinue(item, season, episode, getProgress(item.id, season, episode));
   renderEpisodeLocalSocial(item, season, episode);
   setupEpisodeNav(item, season, episode);
