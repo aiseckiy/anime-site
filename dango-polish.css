@@ -441,17 +441,46 @@
 
 .dc-quality {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .dc-quality.hidden {
   display: none;
 }
 
+/* Current-quality tooltip: shows on gear hover, hides while the menu is open. */
+.dc-quality-tip {
+  position: absolute;
+  right: 0;
+  bottom: 42px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, .9);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease;
+}
+
+.dc-gear:hover + .dc-quality-tip,
+.dc-quality:hover .dc-quality-tip {
+  opacity: 1;
+}
+
+.dc-quality.menu-open .dc-quality-tip {
+  opacity: 0;
+}
+
 .dc-quality-menu {
   position: absolute;
   right: 0;
   bottom: 40px;
-  min-width: 124px;
+  min-width: 140px;
+  max-height: 280px;
+  overflow-y: auto;
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -464,6 +493,20 @@
 
 .dc-quality-menu.hidden {
   display: none;
+}
+
+.dc-q-group {
+  padding: 6px 10px 3px;
+  color: var(--muted, #b9a7b2);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+
+.dc-q-group:not(:first-child) {
+  margin-top: 4px;
+  border-top: 1px solid var(--line, #3a2c34);
 }
 
 .dc-q-item {
@@ -550,7 +593,8 @@
   height: 30px;
 }
 
-.fake-player:fullscreen .dc-gear svg {
+.fake-player:fullscreen .dc-gear svg,
+.fake-player:fullscreen .dc-pip svg {
   width: 24px;
   height: 24px;
 }

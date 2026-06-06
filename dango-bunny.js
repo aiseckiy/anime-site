@@ -8,6 +8,22 @@
   const PLAY_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
   const PAUSE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>`;
   const GEAR_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7 7 0 0 0-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.74 8.86a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.58-.24 1.12-.56 1.62-.94l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>`;
+  const PIP_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02zM18 11h-7v6h7v-6z"/></svg>`;
+
+  // Human-friendly name for an HLS audio track (Japanese / Russian / English).
+  function audioName(track) {
+    const raw = String((track && (track.name || track.lang)) || "").trim();
+    const probe = `${raw} ${(track && track.lang) || ""}`.toLowerCase();
+    if (/(^|[^a-z])(jp|jpn|ja|jap|japan)|япон/.test(probe)) return "Японский";
+    if (/(^|[^a-z])(ru|rus|russ)|рус/.test(probe)) return "Русский";
+    if (/(^|[^a-z])(en|eng|english)|англ/.test(probe)) return "English";
+    return raw || "Дорожка";
+  }
+
+  function setActiveItem(menu, attr, button) {
+    menu.querySelectorAll(`[data-${attr}]`).forEach((node) => node.classList.remove("active"));
+    button.classList.add("active");
+  }
 
   function playerElements() {
     return {
@@ -75,9 +91,11 @@
         </div>
         <div class="dc-right">
           <div class="dc-quality hidden" data-role="quality">
-            <button class="dc-btn dc-gear" data-role="gear" type="button" aria-label="Качество">${GEAR_ICON}<span data-role="qlabel">Авто</span></button>
+            <span class="dc-quality-tip" data-role="qlabel">Авто</span>
+            <button class="dc-btn dc-gear" data-role="gear" type="button" aria-label="Настройки">${GEAR_ICON}</button>
             <div class="dc-quality-menu hidden" data-role="qmenu"></div>
           </div>
+          <button class="dc-btn dc-pip hidden" data-role="pip" type="button" aria-label="Картинка в картинке">${PIP_ICON}</button>
           <button class="dc-btn" data-role="full" type="button" aria-label="Полный экран">⛶</button>
         </div>
       </div>`;
@@ -88,7 +106,8 @@
       bar, timeline: pick("timeline"), progress: pick("progress"), buffered: pick("buffered"),
       play: pick("play"), mute: pick("mute"), vol: pick("vol"),
       cur: pick("cur"), dur: pick("dur"),
-      quality: pick("quality"), gear: pick("gear"), qlabel: pick("qlabel"), qmenu: pick("qmenu"), full: pick("full")
+      quality: pick("quality"), gear: pick("gear"), qlabel: pick("qlabel"), qmenu: pick("qmenu"),
+      pip: pick("pip"), full: pick("full")
     };
     video._dc = dc;
 
@@ -157,8 +176,27 @@
       else shell.requestFullscreen?.().catch(() => {});
     });
 
-    dc.gear.addEventListener("click", (event) => { event.stopPropagation(); dc.qmenu.classList.toggle("hidden"); });
-    document.addEventListener("click", () => dc.qmenu.classList.add("hidden"));
+    // Picture-in-Picture (only when the browser supports it on the <video>).
+    if (document.pictureInPictureEnabled && !video.disablePictureInPicture) {
+      dc.pip.classList.remove("hidden");
+      dc.pip.addEventListener("click", async () => {
+        try {
+          if (document.pictureInPictureElement) await document.exitPictureInPicture();
+          else await video.requestPictureInPicture();
+        } catch {}
+      });
+    }
+
+    // Hover the gear -> tooltip with the current quality; click -> open menu.
+    dc.gear.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const hidden = dc.qmenu.classList.toggle("hidden");
+      dc.quality.classList.toggle("menu-open", !hidden);
+    });
+    document.addEventListener("click", () => {
+      dc.qmenu.classList.add("hidden");
+      dc.quality.classList.remove("menu-open");
+    });
 
     // Auto-hide: after 5s without mouse movement the whole control bar slides
     // down out of the way so it doesn't cover the picture. Any movement (or a
@@ -212,32 +250,57 @@
     if (video && video._centerPlay) video._centerPlay.classList.add("hidden");
   }
 
-  // Populate the in-video quality gear from the available HLS levels.
+  // Populate the in-video gear menu: quality (1080p → … → Авто) and, if the HLS
+  // stream carries more than one audio track, an «Озвучка» switch (JP / RU).
   function buildQualityMenu(hls, video) {
     const dc = video._dc;
     if (!dc) return;
     const levels = hls.levels || [];
-    dc.quality.classList.toggle("hidden", levels.length <= 1);
-    if (levels.length <= 1) return;
+    const audioTracks = hls.audioTracks || [];
+    const hasQuality = levels.length > 1;
+    const hasAudio = audioTracks.length > 1;
+    dc.quality.classList.toggle("hidden", !hasQuality && !hasAudio);
+    if (!hasQuality && !hasAudio) return;
 
-    const item = (text, level, active) =>
-      `<button class="dc-q-item${active ? " active" : ""}" type="button" data-level="${level}">${text}</button>`;
-    let html = item("Авто", -1, hls.autoLevelEnabled);
-    levels.forEach((level, index) => {
-      const name = level.height ? `${level.height}p` : `${Math.round((level.bitrate || 0) / 1000)}k`;
-      html += item(name, index, !hls.autoLevelEnabled && hls.currentLevel === index);
-    });
+    const item = (text, attr, value, active) =>
+      `<button class="dc-q-item${active ? " active" : ""}" type="button" data-${attr}="${value}">${text}</button>`;
+
+    let html = "";
+    if (hasQuality) {
+      const ordered = levels
+        .map((level, index) => ({ index, level }))
+        .sort((a, b) => (b.level.height || b.level.bitrate || 0) - (a.level.height || a.level.bitrate || 0));
+      html += `<div class="dc-q-group">Качество</div>`;
+      html += ordered.map(({ index, level }) => {
+        const name = level.height ? `${level.height}p` : `${Math.round((level.bitrate || 0) / 1000)}k`;
+        return item(name, "level", index, !hls.autoLevelEnabled && hls.currentLevel === index);
+      }).join("");
+      html += item("Авто", "level", -1, hls.autoLevelEnabled);
+    }
+    if (hasAudio) {
+      html += `<div class="dc-q-group">Озвучка</div>`;
+      html += audioTracks.map((track, index) =>
+        item(audioName(track), "audio", index, hls.audioTrack === index)
+      ).join("");
+    }
     dc.qmenu.innerHTML = html;
-    dc.qlabel.textContent = "Авто";
 
-    dc.qmenu.querySelectorAll(".dc-q-item").forEach((button) => {
+    dc.qmenu.querySelectorAll("[data-level]").forEach((button) => {
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         hls.currentLevel = Number(button.dataset.level);
-        dc.qlabel.textContent = button.textContent.trim();
-        dc.qmenu.querySelectorAll(".dc-q-item").forEach((node) => node.classList.remove("active"));
-        button.classList.add("active");
+        setActiveItem(dc.qmenu, "level", button);
         dc.qmenu.classList.add("hidden");
+        dc.quality.classList.remove("menu-open");
+      });
+    });
+    dc.qmenu.querySelectorAll("[data-audio]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        hls.audioTrack = Number(button.dataset.audio);
+        setActiveItem(dc.qmenu, "audio", button);
+        dc.qmenu.classList.add("hidden");
+        dc.quality.classList.remove("menu-open");
       });
     });
   }
@@ -341,11 +404,14 @@
       hls.loadSource(url);
       hls.attachMedia(video);
       hls.on(window.Hls.Events.MANIFEST_PARSED, () => buildQualityMenu(hls, video));
+      hls.on(window.Hls.Events.AUDIO_TRACKS_UPDATED, () => buildQualityMenu(hls, video));
+      hls.on(window.Hls.Events.AUDIO_TRACK_SWITCHED, () => buildQualityMenu(hls, video));
       hls.on(window.Hls.Events.LEVEL_SWITCHED, (_event, data) => {
-        if (dc && hls.autoLevelEnabled) {
-          const level = hls.levels[data.level];
-          dc.qlabel.textContent = level && level.height ? `Авто (${level.height}p)` : "Авто";
-        }
+        if (!dc) return;
+        const level = hls.levels[data.level];
+        const q = level && level.height ? `${level.height}p` : "";
+        // Tooltip always reflects what is actually playing now.
+        dc.qlabel.textContent = hls.autoLevelEnabled ? (q ? `Авто (${q})` : "Авто") : (q || "Авто");
       });
       hls.on(window.Hls.Events.ERROR, (_event, data) => {
         // A 404 / network manifest error is fatal and unrecoverable here.
