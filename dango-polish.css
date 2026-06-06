@@ -428,12 +428,15 @@
   margin: 0 6px 0 2px;
 }
 
-/* Watch progress shown as a percentage where the quality control lives. */
-.dc-percent {
-  margin-right: 6px;
-  font-size: 13px;
-  opacity: .9;
-  font-variant-numeric: tabular-nums;
+/* Control-bar icons (play/pause, gear) render as SVG, not emoji. */
+.dc-btn svg {
+  display: block;
+}
+
+.dc-gear {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .dc-quality {
@@ -538,9 +541,18 @@
   height: 26px;
 }
 
-.fake-player:fullscreen .dc-time,
-.fake-player:fullscreen .dc-percent {
+.fake-player:fullscreen .dc-time {
   font-size: 16px;
+}
+
+.fake-player:fullscreen .dc-play svg {
+  width: 30px;
+  height: 30px;
+}
+
+.fake-player:fullscreen .dc-gear svg {
+  width: 24px;
+  height: 24px;
 }
 
 /* Big centered play button over the still preview */
@@ -651,27 +663,159 @@
   color: var(--muted, #b9a7b2) !important;
 }
 
-/* Ads */
-.ad-surface {
+#cardImageInput.hidden {
+  display: none;
+}
+
+/* Player episode heading: anime name + season/episode chips */
+.player-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.player-heading h1 {
+  margin: 0;
+  font-size: clamp(20px, 3vw, 28px);
+  line-height: 1.15;
+}
+
+.player-episode-meta {
+  display: flex;
+  gap: 8px;
+}
+
+.player-chip {
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--panel-2, rgba(255, 255, 255, .08));
+  border: 1px solid var(--line, #3a2c34);
+  color: var(--text, #fff);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Admin: add-anime button + cover edit on cards */
+.admin-add-anime {
+  margin-top: 10px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent, #ff4fa2);
+  color: #160711;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-add-anime:hover {
+  filter: brightness(1.05);
+}
+
+.admin-add-anime.hidden {
+  display: none;
+}
+
+.poster {
   position: relative;
-  min-height: 90px;
+}
+
+.card-edit-img {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 3;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .72);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.card-edit-img:hover {
+  background: var(--accent, #ff4fa2);
+  color: #160711;
+}
+
+/* Add-anime modal form */
+.add-anime-window {
+  max-width: 460px;
+}
+
+.add-anime-form {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-.ad-label {
-  font-size: 11px;
-  letter-spacing: .4px;
-  text-transform: uppercase;
+.add-anime-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
   color: var(--muted, #b9a7b2);
-  opacity: .7;
 }
 
-.ad-surface .adsbygoogle {
-  display: block;
+.add-anime-form input[type="text"],
+.add-anime-form input[type="number"] {
+  padding: 9px 11px;
+  border: 1px solid var(--line, #3a2c34);
+  border-radius: 8px;
+  background: var(--panel-2, rgba(255, 255, 255, .06));
+  color: var(--text, #fff);
+}
+
+.add-anime-image {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.add-anime-image img {
+  width: 84px;
+  height: 116px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--panel-2, rgba(255, 255, 255, .06));
+  border: 1px solid var(--line, #3a2c34);
+}
+
+.add-anime-image img:not([src]),
+.add-anime-image img[src=""] {
+  visibility: hidden;
+}
+
+.add-anime-counts {
+  display: flex;
+  gap: 10px;
+}
+
+.add-anime-counts label {
+  flex: 1;
+}
+
+.add-anime-actions button {
   width: 100%;
-  min-height: 90px;
+  padding: 11px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent, #ff4fa2);
+  color: #160711;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+#addAnimeStatus {
+  margin: 0;
+  font-size: 13px;
+  color: var(--accent, #ff4fa2);
 }
 
 /* Season / arc structure */

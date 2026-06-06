@@ -4,8 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DANGO - anime catalog</title>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2283255091955030"
-            crossorigin="anonymous"></script>
     <script async src="https://cdn.embed.ly/player-0.1.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
     <link rel="stylesheet" href="styles.css" />
@@ -66,16 +64,6 @@
           </div>
         </section>
 
-        <section class="surface ad-surface">
-          <span class="ad-label">Реклама</span>
-          <ins class="adsbygoogle"
-               style="display:block"
-               data-ad-client="ca-pub-2283255091955030"
-               data-ad-slot=""
-               data-ad-format="auto"
-               data-full-width-responsive="true"></ins>
-        </section>
-
         <section class="surface">
           <div class="section-head">
             <div>
@@ -124,6 +112,7 @@
         <section class="catalog-header">
           <div>
             <h1>Все аниме</h1>
+            <button class="admin-add-anime hidden" id="addAnimeButton" type="button">+ Добавить аниме</button>
           </div>
           <form class="search" id="searchForm">
             <span class="search-icon">⌕</span>
@@ -231,8 +220,11 @@
             <video class="episode-video hidden" id="episodeVideo" playsinline></video>
           </div>
           <div class="player-info">
-            <h1 id="playerTitle">Серия</h1>
-            <p id="playerMeta">DANGO запоминает выбранный момент просмотра.</p>
+            <div class="player-heading">
+              <h1 id="playerTitle">Серия</h1>
+              <div class="player-episode-meta" id="playerEpisodeMeta"></div>
+            </div>
+            <p id="playerMeta"></p>
             <div class="episode-nav">
               <button id="prevEpisode" type="button">← Предыдущая</button>
               <button id="nextEpisode" type="button">Следующая →</button>
@@ -251,7 +243,6 @@
                 <option>Оригинал + субтитры</option>
               </select>
             </label>
-            <button class="episode-like" id="episodeLikeButton" type="button">♡ <span id="episodeLikeCount">0</span></button>
             <button class="structure-edit-button hidden" id="editPlayerButtons" type="button">✎ Кнопки плеера (для этой серии)</button>
           </div>
           <form class="admin-upload hidden" id="sibnetForm">
@@ -276,15 +267,6 @@
             </div>
             <p id="sibnetStatus"></p>
           </form>
-        </section>
-        <section class="surface ad-surface">
-          <span class="ad-label">Реклама</span>
-          <ins class="adsbygoogle"
-               style="display:block"
-               data-ad-client="ca-pub-2283255091955030"
-               data-ad-slot=""
-               data-ad-format="auto"
-               data-full-width-responsive="true"></ins>
         </section>
         <section class="surface comments-panel">
           <div class="section-head">
@@ -425,6 +407,43 @@
         <div id="characterModalBody"></div>
       </section>
     </div>
+
+    <div class="account-modal" id="addAnimeModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close-add-anime></div>
+      <section class="account-window add-anime-window" role="dialog" aria-modal="true" aria-labelledby="addAnimeTitle">
+        <button class="modal-close" data-close-add-anime type="button">×</button>
+        <p class="eyebrow">админ</p>
+        <h2 id="addAnimeTitle">Добавить аниме</h2>
+        <form class="add-anime-form" id="addAnimeForm">
+          <div class="add-anime-image">
+            <img id="addAnimePreview" alt="" src="" />
+            <label class="upload-button">
+              Загрузить изображение
+              <input id="addAnimeImage" type="file" accept="image/*" />
+            </label>
+          </div>
+          <label>
+            Название
+            <input id="addAnimeName" type="text" placeholder="Например: Bocchi the Rock!" required />
+          </label>
+          <label>
+            Русское название
+            <input id="addAnimeRu" type="text" placeholder="Необязательно" />
+          </label>
+          <div class="add-anime-counts">
+            <label>Сезонов<input id="addAnimeSeasons" type="number" min="0" value="1" /></label>
+            <label>Серий<input id="addAnimeEpisodes" type="number" min="0" value="12" /></label>
+            <label>Фильмов<input id="addAnimeMovies" type="number" min="0" value="0" /></label>
+          </div>
+          <div class="add-anime-actions">
+            <button type="submit">Сохранить аниме</button>
+          </div>
+          <p id="addAnimeStatus"></p>
+        </form>
+      </section>
+    </div>
+
+    <input id="cardImageInput" type="file" accept="image/*" class="hidden" />
 
     <footer class="site-footer">
       <button class="footer-link" data-route="privacy" type="button">Политика конфиденциальности</button>

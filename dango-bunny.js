@@ -4,6 +4,10 @@
   // Minimalist monochrome volume icons (inherit currentColor).
   const VOL_ON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>`;
   const VOL_OFF = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/><path d="M16 9l5 6M21 9l-5 6"/></svg>`;
+  // Proper monochrome play / pause / quality icons (no emoji) for every device.
+  const PLAY_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+  const PAUSE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>`;
+  const GEAR_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7 7 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7 7 0 0 0-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.74 8.86a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.58-.24 1.12-.56 1.62-.94l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>`;
 
   function playerElements() {
     return {
@@ -62,7 +66,7 @@
       </div>
       <div class="dc-row">
         <div class="dc-left">
-          <button class="dc-btn dc-play" data-role="play" type="button" aria-label="Воспроизвести">▶</button>
+          <button class="dc-btn dc-play" data-role="play" type="button" aria-label="Воспроизвести">${PLAY_ICON}</button>
           <div class="dc-volume" data-role="volume">
             <button class="dc-btn dc-mute" data-role="mute" type="button" aria-label="Звук">${VOL_ON}</button>
             <input class="dc-vol-range" data-role="vol" type="range" min="0" max="1" step="0.01" value="1" aria-label="Громкость" />
@@ -70,9 +74,8 @@
           <span class="dc-time"><span data-role="cur">0:00</span> / <span data-role="dur">0:00</span></span>
         </div>
         <div class="dc-right">
-          <span class="dc-percent" data-role="percent">0%</span>
           <div class="dc-quality hidden" data-role="quality">
-            <button class="dc-btn" data-role="gear" type="button" aria-label="Качество">⚙ <span data-role="qlabel">Авто</span></button>
+            <button class="dc-btn dc-gear" data-role="gear" type="button" aria-label="Качество">${GEAR_ICON}<span data-role="qlabel">Авто</span></button>
             <div class="dc-quality-menu hidden" data-role="qmenu"></div>
           </div>
           <button class="dc-btn" data-role="full" type="button" aria-label="Полный экран">⛶</button>
@@ -83,7 +86,7 @@
     const pick = (role) => bar.querySelector(`[data-role="${role}"]`);
     const dc = {
       bar, timeline: pick("timeline"), progress: pick("progress"), buffered: pick("buffered"),
-      play: pick("play"), mute: pick("mute"), vol: pick("vol"), percent: pick("percent"),
+      play: pick("play"), mute: pick("mute"), vol: pick("vol"),
       cur: pick("cur"), dur: pick("dur"),
       quality: pick("quality"), gear: pick("gear"), qlabel: pick("qlabel"), qmenu: pick("qmenu"), full: pick("full")
     };
@@ -98,10 +101,10 @@
         try { if (video.currentTime > 1) video.currentTime = 0; } catch {}
         exitPreview(video);
       }
-      dc.play.textContent = "⏸";
+      dc.play.innerHTML = PAUSE_ICON;
       bar.classList.remove("dc-paused");
     });
-    video.addEventListener("pause", () => { dc.play.textContent = "▶"; bar.classList.add("dc-paused"); });
+    video.addEventListener("pause", () => { dc.play.innerHTML = PLAY_ICON; bar.classList.add("dc-paused"); });
 
     // Volume: the slider only unfurls while the cursor is over the speaker
     // (CSS :hover) and tucks back away when the cursor leaves.
@@ -127,7 +130,6 @@
       const pct = video.duration ? (video.currentTime / video.duration) * 100 : 0;
       dc.progress.style.width = `${pct}%`;
       dc.cur.textContent = fmtTime(video.currentTime);
-      dc.percent.textContent = `${Math.round(pct)}%`;
     });
     video.addEventListener("progress", () => {
       try {

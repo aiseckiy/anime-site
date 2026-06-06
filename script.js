@@ -75,6 +75,90 @@ const anime = [
   description: `${ru} (${name}) - тайтл для просмотра на DANGO. Мы показываем сезоны, серии, прогресс, лайки и комментарии через ваш профиль.`
 }));
 
+// Admin-added titles and cover overrides live in the browser (localStorage) so
+// they survive reloads without a dedicated backend table.
+function readStore(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "null");
+    return value == null ? fallback : value;
+  } catch {
+    return fallback;
+  }
+}
+
+function makeAnime(raw) {
+  const name = (raw.name || "Без названия").trim();
+  const ru = (raw.ru || name).trim();
+  const query = (raw.query || name).toLowerCase();
+  return {
+    id: raw.id,
+    name,
+    ru,
+    query,
+    image: raw.image || PLACEHOLDER_IMG,
+    seasons: Math.max(0, Number(raw.seasons) || 0),
+    episodes: Math.max(0, Number(raw.episodes) || 0),
+    movies: Math.max(0, Number(raw.movies) || 0),
+    rating: Number(raw.rating) || 0,
+    aliases: [name, ru, query].join(" ").toLowerCase(),
+    description: raw.description || `${ru} (${name}) — добавлено администратором DANGO.`,
+    custom: true,
+    imageLocked: Boolean(raw.image)
+  };
+}
+
+function loadCustomAnime() {
+  const list = readStore("dangoCustomAnime", []);
+  if (!Array.isArray(list)) return;
+  list.forEach((raw) => {
+    if (!raw || anime.some((entry) => entry.id === raw.id)) return;
+    anime.push(makeAnime(raw));
+  });
+}
+
+function applyImageOverrides() {
+  const overrides = readStore("dangoImageOverrides", {});
+  anime.forEach((item) => {
+    if (overrides[item.id]) {
+      item.image = overrides[item.id];
+      item.imageLocked = true;
+    }
+  });
+}
+
+function nextAnimeId() {
+  return anime.reduce((max, entry) => Math.max(max, entry.id), 0) + 1;
+}
+
+function addCustomAnime(data) {
+  const record = {
+    id: nextAnimeId(),
+    name: data.name,
+    ru: data.ru,
+    image: data.image || "",
+    seasons: data.seasons,
+    episodes: data.episodes,
+    movies: data.movies
+  };
+  const list = readStore("dangoCustomAnime", []);
+  list.push(record);
+  localStorage.setItem("dangoCustomAnime", JSON.stringify(Array.isArray(list) ? list : [record]));
+  const item = makeAnime(record);
+  anime.push(item);
+  return item;
+}
+
+function setAnimeImage(id, dataUrl) {
+  const overrides = readStore("dangoImageOverrides", {});
+  overrides[id] = dataUrl;
+  localStorage.setItem("dangoImageOverrides", JSON.stringify(overrides));
+  const item = anime.find((entry) => entry.id === id);
+  if (item) {
+    item.image = dataUrl;
+    item.imageLocked = true;
+  }
+}
+
 const $ = (selector) => document.querySelector(selector);
 const state = {
   title: anime[0],
@@ -129,23 +213,6 @@ function routeTo(view, payload = {}, push = true) {
   document.querySelectorAll(".nav-button").forEach((button) => button.classList.toggle("active", button.dataset.route === view));
   if (push) history.pushState({ view, ...payload }, "", view === "title" ? `#title-${payload.id}` : view === "player" ? `#watch-${payload.id}-${payload.season}-${payload.episode}` : `#${view}`);
   window.scrollTo({ top: 0, behavior: "smooth" });
-  initAds();
-}
-
-// Initialize AdSense units only when their view is visible (SPA-safe) and a
-// real ad slot id has been set. Auto ads (the head loader) cover the rest.
-function initAds() {
-  try {
-    document.querySelectorAll("ins.adsbygoogle").forEach((ins) => {
-      const view = ins.closest(".view");
-      const visible = !view || view.classList.contains("active");
-      const slot = (ins.getAttribute("data-ad-slot") || "").trim();
-      if (visible && slot && !ins.dataset.adInit && ins.offsetWidth > 0) {
-        ins.dataset.adInit = "1";
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      }
-    });
-  } catch {}
 }
 
 function restoreFromHash() {
@@ -169,7 +236,7 @@ function card(item, rating = true) {
   return `<article class="anime-card" tabindex="0" data-id="${item.id}">
     ${rating ? `<div class="rating-badge">${item.rating}</div>` : ""}
     <button class="card-heart ${liked ? "liked" : ""}" data-like-id="${item.id}" type="button">${liked ? "♥" : "♡"}</button>
-    <div class="poster"><img src="${item.image}" alt="${item.name}" loading="lazy" onerror="fallbackImg(this)"></div>
+    <div class="poster"><img src="${item.image}" alt="${item.name}" loading="lazy" onerror="fallbackImg(this)">${isAdmin() ? `<button class="card-edit-img" data-edit-img-id="${item.id}" type="button">Изменить изображение</button>` : ""}</div>
     <div class="anime-card-content"><h3>${item.name}</h3><p>${item.seasons} сезон • ${item.episodes} серий • ${item.movies} фильмов</p></div>
   </article>`;
 }
@@ -184,6 +251,15 @@ function bindCards(root) {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       toggleLike(anime.find((entry) => entry.id === Number(button.dataset.likeId)));
+    });
+  });
+  root?.querySelectorAll(".card-edit-img").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const input = $("#cardImageInput");
+      if (!input) return;
+      input.dataset.targetId = button.dataset.editImgId;
+      input.click();
     });
   });
 }
@@ -254,7 +330,10 @@ async function openTitle(item, push = true) {
     if (found) {
       item.rating = found.score || item.rating;
       item.description = found.synopsis || item.description;
-      item.image = found.images?.jpg?.large_image_url || item.image;
+      if (!item.imageLocked) {
+        item.image = found.images?.jpg?.large_image_url || item.image;
+        $("#titleImage").src = item.image;
+      }
       $("#titleDescription").textContent = item.description;
     }
   } catch {
@@ -382,7 +461,9 @@ async function openPlayer(item, season, episode, push = true) {
   state.episode = { id: item.id, season, episode };
   if (!(item.id in state.structures)) await loadStructure(item);
   routeTo("player", { id: item.id, season, episode }, push);
-  $("#playerTitle").textContent = `${item.name} - ${season} сезон, ${episode} серия`;
+  $("#playerTitle").textContent = item.name;
+  const epMeta = $("#playerEpisodeMeta");
+  if (epMeta) epMeta.innerHTML = `<span class="player-chip">${season} сезон</span><span class="player-chip">${episode} серия</span>`;
   rememberContinue(item, season, episode, getProgress(item.id, season, episode));
   renderEpisodeLocalSocial(item, season, episode);
   setupEpisodeNav(item, season, episode);
@@ -414,10 +495,7 @@ function episodeKey(item, season, episode) {
 }
 
 function renderEpisodeLocalSocial(item, season, episode) {
-  const data = JSON.parse(localStorage.getItem(episodeKey(item, season, episode)) || '{"liked":false,"likes":0,"comments":[]}');
-  $("#episodeLikeButton").classList.toggle("liked", data.liked);
-  $("#episodeLikeButton").firstChild.textContent = data.liked ? "♥ " : "♡ ";
-  $("#episodeLikeCount").textContent = data.likes || 0;
+  const data = JSON.parse(localStorage.getItem(episodeKey(item, season, episode)) || '{"comments":[]}');
   renderComments(data.comments || []);
 }
 
@@ -517,6 +595,7 @@ function renderAccount() {
   }
   if (banner) $("#profileBanner").style.backgroundImage = `linear-gradient(rgba(0,0,0,.12), rgba(0,0,0,.45)), url("${banner}")`;
   renderLiked();
+  renderCatalog();
   updateAdminUpload();
 }
 
@@ -526,6 +605,7 @@ function isAdmin() {
 
 function updateAdminUpload() {
   $("#sibnetForm")?.classList.toggle("hidden", !isAdmin());
+  $("#addAnimeButton")?.classList.toggle("hidden", !isAdmin());
   const editBtn = $("#editPlayerButtons");
   if (editBtn) {
     editBtn.classList.toggle("hidden", !isAdmin());
@@ -628,13 +708,6 @@ function initEvents() {
   $("#likeButton")?.addEventListener("click", () => toggleLike(state.title));
   $("#progressRange")?.addEventListener("input", (event) => state.episode && rememberContinue(state.title, state.episode.season, state.episode.episode, event.target.value));
   $("#backToTitle")?.addEventListener("click", () => openTitle(state.title));
-  $("#episodeLikeButton")?.addEventListener("click", () => {
-    const data = JSON.parse(localStorage.getItem(episodeKey(state.title, state.episode.season, state.episode.episode)) || '{"liked":false,"likes":0,"comments":[]}');
-    data.liked = !data.liked;
-    data.likes = Math.max(0, Number(data.likes || 0) + (data.liked ? 1 : -1));
-    localStorage.setItem(episodeKey(state.title, state.episode.season, state.episode.episode), JSON.stringify(data));
-    renderEpisodeLocalSocial(state.title, state.episode.season, state.episode.episode);
-  });
   $("#commentForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const text = $("#commentInput").value.trim();
@@ -708,6 +781,64 @@ function initEvents() {
     $("#demonCharacters").classList.toggle("active", button.dataset.demonTab === "characters");
     $("#demonStyles").classList.toggle("active", button.dataset.demonTab === "styles");
   }));
+  // Admin: change an existing title's cover from its catalog card.
+  $("#cardImageInput")?.addEventListener("change", (event) => {
+    const input = event.target;
+    const id = Number(input.dataset.targetId);
+    const file = input.files?.[0];
+    if (!file || !id) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAnimeImage(id, reader.result);
+      if (state.title?.id === id && $("#titleImage")) $("#titleImage").src = reader.result;
+      renderCatalog();
+      renderHome();
+    };
+    reader.readAsDataURL(file);
+    input.value = "";
+  });
+
+  // Admin: add a brand new title (name + cover).
+  $("#addAnimeButton")?.addEventListener("click", () => {
+    if (!isAdmin()) return;
+    $("#addAnimeForm")?.reset();
+    const preview = $("#addAnimePreview");
+    if (preview) { preview.removeAttribute("src"); delete preview.dataset.image; }
+    if ($("#addAnimeStatus")) $("#addAnimeStatus").textContent = "";
+    $("#addAnimeModal")?.classList.add("open");
+  });
+  document.querySelectorAll("[data-close-add-anime]").forEach((node) =>
+    node.addEventListener("click", () => $("#addAnimeModal")?.classList.remove("open")));
+  $("#addAnimeImage")?.addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const preview = $("#addAnimePreview");
+      if (preview) { preview.src = reader.result; preview.dataset.image = reader.result; }
+    };
+    reader.readAsDataURL(file);
+  });
+  $("#addAnimeForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!isAdmin()) return;
+    const name = $("#addAnimeName").value.trim();
+    if (!name) { $("#addAnimeStatus").textContent = "Введите название."; return; }
+    const item = addCustomAnime({
+      name,
+      ru: $("#addAnimeRu").value.trim(),
+      image: $("#addAnimePreview")?.dataset.image || "",
+      seasons: Number($("#addAnimeSeasons").value) || 0,
+      episodes: Number($("#addAnimeEpisodes").value) || 0,
+      movies: Number($("#addAnimeMovies").value) || 0
+    });
+    renderCatalog();
+    renderHome();
+    renderRecommendations();
+    $("#addAnimeModal")?.classList.remove("open");
+    openTitle(item);
+  });
+
   window.addEventListener("popstate", (event) => {
     const route = event.state || { view: "home" };
     if (route.view === "title") return openTitle(anime.find((item) => item.id === route.id), false);
@@ -719,6 +850,8 @@ function initEvents() {
 async function init() {
   if (localStorage.getItem("dangoTheme") !== "light") document.body.classList.add("dark-theme");
   $("#themeButton").textContent = document.body.classList.contains("dark-theme") ? "☀" : "☾";
+  loadCustomAnime();
+  applyImageOverrides();
   initEvents();
   setAuthMode("login");
   await loadProfile();
