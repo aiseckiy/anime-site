@@ -667,6 +667,54 @@
   display: none;
 }
 
+/* Bunny auto-import block at the top of the admin player form */
+.bunny-sync-box {
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--accent, #ff4fa2);
+  border-radius: 10px;
+  background: rgba(255, 79, 162, .08);
+}
+
+.bunny-sync-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.bunny-sync-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--muted, #b9a7b2);
+}
+
+.bunny-sync-button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent, #ff4fa2);
+  color: #160711;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.bunny-sync-button:hover {
+  filter: brightness(1.05);
+}
+
+.bunny-sync-button:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
+.bunny-sync-status {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text, #fff);
+}
+
 /* Player episode heading: anime name + season/episode chips */
 /* Keep the episode info at the top of the panel rather than vertically centred. */
 .player-page .player-info {

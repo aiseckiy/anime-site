@@ -643,28 +643,51 @@
   }
 
   function installBunnySyncButton() {
-    const { uploadForm, uploadStatus } = playerElements();
-    if (!uploadForm || document.querySelector("#syncBunnyButton")) return;
+    // The admin form in index.html is #sibnetForm (the old #mediaUploadForm id
+    // never existed, which is why the button never showed up). Put a clear
+    // auto-import block at the top of that admin-only form.
+    const form = document.querySelector("#sibnetForm");
+    if (!form || document.querySelector("#syncBunnyButton")) return;
+
+    const box = document.createElement("div");
+    box.className = "bunny-sync-box";
+
+    const heading = document.createElement("h3");
+    heading.className = "bunny-sync-title";
+    heading.textContent = "Авто-загрузка из Bunny Stream";
+
+    const hint = document.createElement("p");
+    hint.className = "bunny-sync-hint";
+    hint.textContent = "Просканирует всю библиотеку Bunny и сам разложит видео по аниме, сезонам и сериям.";
 
     const button = document.createElement("button");
     button.id = "syncBunnyButton";
     button.type = "button";
-    button.textContent = "Синхронизировать Bunny Stream";
-    uploadForm.appendChild(button);
+    button.className = "bunny-sync-button";
+    button.textContent = "🔄 Синхронизировать Bunny Stream";
+
+    const status = document.createElement("p");
+    status.id = "syncBunnyStatus";
+    status.className = "bunny-sync-status";
+
+    box.append(heading, hint, button, status);
+    form.prepend(box);
 
     button.addEventListener("click", async () => {
-      if (!uploadStatus) return;
-      uploadStatus.textContent = "Сканирую Bunny Stream и сортирую видео...";
+      button.disabled = true;
+      status.textContent = "Сканирую Bunny Stream и сортирую видео...";
       try {
         const result = await bunnyRequest("/api/admin/bunny/sync", { method: "POST" });
-        uploadStatus.textContent = `Bunny готов: ${result.synced} видео привязано, ${result.skipped.length} пропущено, коллекций-сезонов найдено: ${result.collectionsFound ?? 0}.`;
+        status.textContent = `Готово: ${result.synced} видео привязано, ${result.skipped.length} пропущено (из ${result.total ?? "?"}), коллекций-сезонов: ${result.collectionsFound ?? 0}.`;
         try {
           if (typeof state !== "undefined" && state.title && state.episode) {
             await loadBunnyAwareMedia(state.title, state.episode.season, state.episode.episode);
           }
         } catch {}
       } catch (error) {
-        uploadStatus.textContent = `Bunny ошибка: ${error.message}`;
+        status.textContent = `Ошибка Bunny: ${error.message}. Проверьте Library ID и API-ключ.`;
+      } finally {
+        button.disabled = false;
       }
     });
   }
