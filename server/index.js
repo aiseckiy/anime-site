@@ -240,7 +240,19 @@ function parseBunnyVideoTitle(rawTitle = "") {
   if (!titleMatch || episode == null) return null;
 
   const season = extractSeason(originalName) ?? titleMatch.season ?? 1;
-  const dubToken = originalName.match(/anilibria|anidub|dub|sub|озвуч\w*|субтит\w*/i)?.[0];
+
+  // Dub: a known keyword first; otherwise the first [bracket] token that isn't
+  // the episode, season or quality — so custom dubs like [Studio Band] work.
+  const bracketTokens = [...originalName.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim()).filter(Boolean);
+  let dubToken = bracketTokens.find((t) => /anilibria|anidub|dub|sub|озвуч|субтит|japan|япон/i.test(t));
+  if (!dubToken) {
+    dubToken = bracketTokens.find((t) =>
+      !/^\d{1,4}$/.test(t) &&
+      !/\b\d{3,4}p\b|4k|uhd/i.test(t) &&
+      !/^s\d{1,2}(\s*e\s*\d{1,4})?$/i.test(t)
+    );
+  }
+  if (!dubToken) dubToken = originalName.match(/anilibria|anidub|japan|япон|озвуч\w*/i)?.[0];
   const qualityToken = originalName.match(/\d{3,4}p|4k|uhd|hd/i)?.[0];
 
   return {
@@ -255,11 +267,15 @@ function parseBunnyVideoTitle(rawTitle = "") {
 }
 
 function normalizeDub(value = "") {
-  const normalized = String(value || "").toLowerCase();
+  const raw = String(value || "").trim();
+  const normalized = raw.toLowerCase();
+  if (!raw) return "Original";
   if (normalized.includes("anilibria")) return "AniLibria";
   if (normalized.includes("anidub")) return "AniDub";
-  if (normalized.includes("sub")) return "Субтитры";
-  return value || "Original";
+  if (normalized.includes("japan") || normalized.includes("япон") || normalized === "jp" || normalized === "jpn") return "Japanese";
+  if (normalized.includes("субтит") || normalized === "sub" || normalized.includes("subtit")) return "Субтитры";
+  // Keep custom dub names as-is (e.g. "Studio Band", "Dream Cast").
+  return raw;
 }
 
 function normalizeQuality(value = "") {

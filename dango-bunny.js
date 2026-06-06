@@ -12,13 +12,15 @@
 
   // Human-friendly name for an HLS audio track (Japanese / Russian / English).
   function audioName(track) {
-    const raw = String((track && (track.name || track.lang)) || "").trim();
-    const probe = `${raw} ${(track && track.lang) || ""}`.toLowerCase();
-    if (/(^|[^a-z])(jp|jpn|ja|jap|japan)|япон/.test(probe)) return "Japanese";
-    if (/anilibr/.test(probe)) return "AniLibria";
-    if (/(^|[^a-z])(ru|rus|russ)|рус/.test(probe)) return "AniLibria";
-    if (/(^|[^a-z])(en|eng|english)|англ/.test(probe)) return "English";
-    return raw || "Дорожка";
+    const name = String((track && track.name) || "").trim();
+    const lang = String((track && track.lang) || "").trim().toLowerCase();
+    // Prefer an explicit, meaningful track name (e.g. "Studio Band", "AniLibria",
+    // "Japanese"); fall back to the language code only when there is no name.
+    if (name && !/^(audio|track|und|default|undefined|\d+)$/i.test(name)) return name;
+    if (/(jp|jpn|ja|jap|japan|япон)/.test(lang)) return "Japanese";
+    if (/(ru|rus|russ|рус)/.test(lang)) return "Русский";
+    if (/(en|eng|english|англ)/.test(lang)) return "English";
+    return name || lang.toUpperCase() || "Дорожка";
   }
 
   function esc(value) {
